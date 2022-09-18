@@ -5,5 +5,6 @@
 #include "ui/ui.h"
 
 int main() {
+    neural_test();
     return 0;
 }

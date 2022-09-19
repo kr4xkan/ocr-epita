@@ -7,7 +7,7 @@
 SDL_Surface *surface;
 
 void neural_test() {
-    surface = IMG_Load("DataSample/neuralnet/mage.bmp");
+    surface = IMG_Load("DataSample/neuralnet/image.bmp");
     if (!surface) {
         errx(1, "Could not load image");
     }

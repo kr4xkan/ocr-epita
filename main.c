@@ -5,6 +5,7 @@
 #include "ui/ui.h"
 
 int main() {
-    neural_test();
+    /*neural_test();*/
+    detect_lines();
     return 0;
 }

@@ -6,6 +6,6 @@
 
 int main() {
     /*neural_test();*/
-    detect_lines();
+    DetectLines();
     return 0;
 }

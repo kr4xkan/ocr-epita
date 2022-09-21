@@ -1,3 +1,4 @@
 #pragma once
 
-void detect_lines();
+void FillAcumulator(int x, int y, unsigned char * space);
+void DetectLines();

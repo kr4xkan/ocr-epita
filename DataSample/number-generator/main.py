@@ -45,5 +45,5 @@ def create_image(num, i):
 shutil.rmtree("./output")
 os.mkdir("./output")
 
-for i in range(1000):
+for i in range(100):
     create_image(random.randrange(0, 10), i)

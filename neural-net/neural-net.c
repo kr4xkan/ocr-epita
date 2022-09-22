@@ -1,8 +1,10 @@
 #include "err.h"
 #include <SDL2/SDL_image.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "../utils.h"
+#include "matrix.h"
 #include "neural-net.h"
 
 SDL_Surface *surface;
@@ -22,15 +24,37 @@ int main(int argc, char **argv) {
         layers_node_count[i - 1] = strtol(argv[i], &ptr, 10);
     }
 
+    // Initialize randomizer
+    srand((unsigned int)time(NULL));
+
     // Build neural network
     float *weights_ih =
         malloc(layers_node_count[0] * layers_node_count[1] * sizeof(float));
-    
+    size_t len_w_ih = layers_node_count[0] * layers_node_count[1];
+
     float *weights_ho =
         malloc(layers_node_count[1] * layers_node_count[2] * sizeof(float));
+    size_t len_w_ho = layers_node_count[1] * layers_node_count[2];
+
+    mat_randomize(weights_ih, len_w_ih);
+    mat_randomize(weights_ho, len_w_ho);
+
+    mat_print(weights_ih, layers_node_count[0], layers_node_count[1]);
+
+    float *bias_h = malloc(layers_node_count[1] * sizeof(float));
+    float *bias_o = malloc(layers_node_count[2] * sizeof(float));
+
+    float t1[] = {1,2,3,4,5,6};
+    float t2[] = {6,6,6,6,6,6};
+    float tr[9];
+    mat_multiply(tr, t1, t2, 3, 2, 3);
+
+    mat_print(tr, 3, 3);
 
     free(weights_ih);
     free(weights_ho);
+    free(bias_h);
+    free(bias_o);
 }
 
 void neural_test() {

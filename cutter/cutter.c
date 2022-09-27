@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <err.h>
 #include <SDL2/SDL_image.h>
-#include <math.h>
 
 #include "../utils.h"
 #include "cutter.h"
@@ -10,9 +9,20 @@
 SDL_Surface *surf;
 int maxDist;
 
+int minAverage = 200;
+int minPic = 250;
+
+float cosArray[180];
+float sinArray[180];
+
+
 void DetectLines() {
+    CreateAnglesArray();
+
+
+
     //Load the image
-    surf = IMG_Load("DataSample/cutter/square.bmp");
+    surf = LoadImage("DataSample/cutter/og1rotate.png");
     if (!surf) {
         errx(1, "Could not load image");
     }
@@ -42,16 +52,80 @@ void DetectLines() {
 
             GetPixelColor(surf, x, y, &r, &g, &b);
             unsigned char average = (r + g + b) / 3;
-            if (average > 200){
+            if (average > minAverage){
                 FillAcumulator(x, y, space);
             }
         }
     }
     
+
+    //PrintMat(space);
+
+
+    // Searching for the highest values
+    int y = -maxDist;
+    for(int i = 0; i < maxDist * 360; i ++){
+        if (space[i] >= minPic){
+            DrawLine(surf, i%180-90, y);
+        }
+
+        if(i%180 == 0) y++;
+    }
+    
+    IMG_SavePNG(surf, "test.png");
+
+    // To avoid memory leak
+    free(space);
+    printf("memory freed\n");
+}
+
+
+
+
+void FillAcumulator(int x, int y, unsigned char * space){
+    for (int i = 0; i < 180; i++){
+        int rho = x*cosArray[i] + y*sinArray[i] + maxDist;
+        space[rho*180 + i] += 1;
+    }
+}
+
+void CreateAnglesArray(){
+    int i = 0;
+    for (int teta = -90; teta < 90; teta++){
+        float angle = teta * 3.141592 / 180; 
+        cosArray[i] = cos(angle);
+        sinArray[i] = sin(angle);
+        i++;
+    }
+    
+}
+
+
+//----------------------------------UTILS------------------------------
+void DrawLine(SDL_Surface * surf, int teta, int rho){
+    float angle = teta * 3.141592 / 180; 
+    float costeta = cos(angle);
+    float sinteta = sin(angle);
+
+    SDL_Rect r;
+    r.w = 1;
+    r.h = 1;
+    for (int x = 0; x < surf->w; x++){
+        int y = (rho - x*costeta) / sinteta;
+        r.x = x;
+        r.y = y;
+        SDL_FillRect(surf, &r, SDL_MapRGB(surf->format, 255, 0, 0));
+    }
+    
+}
+
+
+
+void PrintMat(unsigned char * space){
     for(int i = 0; i < maxDist * 360; i ++){
         if(i % 180 == 0)
             printf("\n");
-        if(space[i] >= 100){
+        if(space[i] >= minPic){
             printf("\033[1;31m");
             printf("%3u ", space[i]);
         }
@@ -66,49 +140,4 @@ void DetectLines() {
             
     }
     printf("\n");
-    
-    int y = -maxDist;
-    for(int i = 0; i < maxDist * 360; i ++){
-        if (space[i] >= 150){
-            DrawLine(surf, i%180-90, y);
-        }
-
-        if(i%180 == 0) y++;
-    }
-    SDL_SaveBMP(surf, "test.bmp");
-
-    // To avoid memory leak
-    free(space);
-    printf("memory freed\n");
-}
-
-
-
-
-void FillAcumulator(int x, int y, unsigned char * space){
-    for (int teta = -90; teta < 90; teta += 1){
-        // conevrting teta in radian
-        float angle = teta * 3.141592 / 180; 
-        int rho = x*cos(angle) + y*sin(angle) + maxDist;
-        space[rho*180 + teta + 90] += 1;
-    }
-}
-
-
-
-
-void DrawLine(SDL_Surface * surf, int teta, int rho){
-    float costeta = cos(teta);
-    float sinteta = sin(teta);
-
-    SDL_Rect r;
-    r.w = 1;
-    r.h = 1;
-    for (int x = 0; x < surf->w; x++){
-        int y = (rho - x*costeta) / sinteta;
-        r.x = x;
-        r.y = y;
-        SDL_FillRect(surf, &r, SDL_MapRGB(surf->format, 255, 0, 0));
-    }
-    
 }

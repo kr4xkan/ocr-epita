@@ -16,6 +16,8 @@ float cosArray[180];
 float sinArray[180];
 
 
+int jsp = 0;
+
 void DetectLines() {
     // Creates all the values that teta will become in the loops
     CreateAnglesArray();
@@ -51,6 +53,7 @@ void DetectLines() {
     for (int y = 0; y < h; y++){
         for (int x = 0; x < w; x++){
 
+            jsp ++;
             GetPixelColor(surface, x, y, &r, &g, &b);
             unsigned char average = (r + g + b) / 3;
             if (average > minAverage){
@@ -61,14 +64,16 @@ void DetectLines() {
     
 
     PeakDetection(space, surface);
-    PrintMat(space);
+    //PrintMat(space);
 
 
     IMG_SavePNG(surface, "test.png");
 
     // To avoid memory leak
     free(space);
+    SDL_FreeSurface(surface);
     printf("memory freed\n");
+    printf("%i\n", jsp);
 }
 
 
@@ -92,10 +97,10 @@ void PeakDetection(unsigned char * space, SDL_Surface * surface){
 
 
     int y = -maxDist;
-    minPeak = maxPeak * 0.85;
+    minPeak = maxPeak * 1;
     for (int i = 181; i < maxDist*360 - 181; i++){
         unsigned char val = space[i];
-        if (val > minPeak)
+        if (val >= minPeak)
             if (val > space[i-1] && val > space[i+1] && val > space[i-180] && val > space[i+180])
                 DrawLine(surface, i%180-90, y);
 

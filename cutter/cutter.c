@@ -6,29 +6,30 @@
 #include "cutter.h"
 
 
-SDL_Surface *surf;
 int maxDist;
 
 int minAverage = 200;
-int minPic = 250;
+int minPeak;
 
+// Array of teta values
 float cosArray[180];
 float sinArray[180];
 
 
 void DetectLines() {
+    // Creates all the values that teta will become in the loops
     CreateAnglesArray();
 
-
-
+    
+    SDL_Surface *surface;
     //Load the image
-    surf = LoadImage("DataSample/cutter/og1rotate.png");
-    if (!surf) {
+    surface = LoadImage("DataSample/cutter/og1inverted.png");
+    if (!surface) {
         errx(1, "Could not load image");
     }
     int w, h;
-    w = surf->w;
-    h = surf->h;
+    w = surface->w;
+    h = surface->h;
     printf("Image Loaded Succesfully with dimension: %dx%d!\n", w, h);
 
 
@@ -50,7 +51,7 @@ void DetectLines() {
     for (int y = 0; y < h; y++){
         for (int x = 0; x < w; x++){
 
-            GetPixelColor(surf, x, y, &r, &g, &b);
+            GetPixelColor(surface, x, y, &r, &g, &b);
             unsigned char average = (r + g + b) / 3;
             if (average > minAverage){
                 FillAcumulator(x, y, space);
@@ -59,20 +60,11 @@ void DetectLines() {
     }
     
 
-    //PrintMat(space);
+    PeakDetection(space, surface);
+    PrintMat(space);
 
 
-    // Searching for the highest values
-    int y = -maxDist;
-    for(int i = 0; i < maxDist * 360; i ++){
-        if (space[i] >= minPic){
-            DrawLine(surf, i%180-90, y);
-        }
-
-        if(i%180 == 0) y++;
-    }
-    
-    IMG_SavePNG(surf, "test.png");
+    IMG_SavePNG(surface, "test.png");
 
     // To avoid memory leak
     free(space);
@@ -89,6 +81,28 @@ void FillAcumulator(int x, int y, unsigned char * space){
     }
 }
 
+
+
+void PeakDetection(unsigned char * space, SDL_Surface * surface){
+    unsigned char maxPeak = 0;
+    for (int i = 0; i < maxDist*360; i++){
+        if (space[i] > maxPeak)
+            maxPeak = space[i];
+    }
+
+
+    int y = -maxDist;
+    minPeak = maxPeak * 0.85;
+    for (int i = 181; i < maxDist*360 - 181; i++){
+        unsigned char val = space[i];
+        if (val > minPeak)
+            if (val > space[i-1] && val > space[i+1] && val > space[i-180] && val > space[i+180])
+                DrawLine(surface, i%180-90, y);
+
+        if(i%180 == 0) y++;
+    }
+}
+
 void CreateAnglesArray(){
     int i = 0;
     for (int teta = -90; teta < 90; teta++){
@@ -100,9 +114,8 @@ void CreateAnglesArray(){
     
 }
 
-
 //----------------------------------UTILS------------------------------
-void DrawLine(SDL_Surface * surf, int teta, int rho){
+void DrawLine(SDL_Surface * surface, int teta, int rho){
     float angle = teta * 3.141592 / 180; 
     float costeta = cos(angle);
     float sinteta = sin(angle);
@@ -110,11 +123,11 @@ void DrawLine(SDL_Surface * surf, int teta, int rho){
     SDL_Rect r;
     r.w = 1;
     r.h = 1;
-    for (int x = 0; x < surf->w; x++){
+    for (int x = 0; x < surface->w; x++){
         int y = (rho - x*costeta) / sinteta;
         r.x = x;
         r.y = y;
-        SDL_FillRect(surf, &r, SDL_MapRGB(surf->format, 255, 0, 0));
+        SDL_FillRect(surface, &r, SDL_MapRGB(surface->format, 255, 0, 0));
     }
     
 }
@@ -125,11 +138,11 @@ void PrintMat(unsigned char * space){
     for(int i = 0; i < maxDist * 360; i ++){
         if(i % 180 == 0)
             printf("\n");
-        if(space[i] >= minPic){
+        if(space[i] >= minPeak){
             printf("\033[1;31m");
             printf("%3u ", space[i]);
         }
-        if(space[i] >= 1){
+        else if(space[i] >= 1){
             printf("\033[0m");
             printf("%3u ", space[i]);
         }

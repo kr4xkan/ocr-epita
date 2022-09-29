@@ -3,15 +3,28 @@
 #include <stddef.h>
 
 struct LabeledImage {
-    float data[28*28];
+    float data[28 * 28];
     int label;
 };
-
 typedef struct LabeledImage LabeledImage;
+
+struct NeuralNetwork {
+    float **layers;
+    float **weights;
+    float **bias;
+    float weights_sizes[6][2];
+    int *layers_node_count;
+    int layer_count;
+};
+typedef struct NeuralNetwork NeuralNetwork;
 
 void neural_test();
 
-void setup_network(int *layers_node_count, int layer_count);
+void setup_network(NeuralNetwork *network, int *layers_node_count,
+                   int layer_count, float weights_sizes[6][2], float **weights,
+                   float **bias, float **layers);
+
+void guess(float *input, NeuralNetwork *network);
 
 void get_input(float *res, char *image_path);
 

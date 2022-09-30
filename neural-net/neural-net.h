@@ -21,7 +21,7 @@ typedef struct NeuralNetwork NeuralNetwork;
 void neural_test();
 
 void setup_network(NeuralNetwork *network, int *layers_node_count,
-                   int layer_count, float weights_sizes[6][2], float **weights,
+                   int layer_count, float **weights,
                    float **bias, float **layers);
 
 void guess(float *input, NeuralNetwork *network);

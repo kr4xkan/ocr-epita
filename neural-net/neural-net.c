@@ -50,8 +50,8 @@ int main(int argc, char **argv) {
 
     NeuralNetwork network;
 
-    setup_network(&network, layers_node_count, layer_count, weights_sizes,
-                  weights, bias, layers);
+    setup_network(&network, layers_node_count, layer_count, weights, bias,
+                  layers);
 
     for (int k = 0; k < 1; k++) {
         int total = 0;
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
             }
             total++;
             correct += (int)max_index == dataset[dataset_index].label;
-            
+
             train(&network, &dataset[dataset_index]);
         }
         if (k % 10 == 0) {
@@ -95,16 +95,17 @@ int main(int argc, char **argv) {
 }
 
 void setup_network(NeuralNetwork *network, int *layers_node_count,
-                   int layer_count, float weights_sizes[6][2], float **weights,
-                   float **bias, float **layers) {
+                   int layer_count, float **weights, float **bias,
+                   float **layers) {
     for (int i = 0; i < layer_count - 1; i++) {
-        weights_sizes[i][0] = layers_node_count[i + 1];
-        weights_sizes[i][1] = layers_node_count[i];
-        weights[i] =
-            malloc(weights_sizes[i][0] * weights_sizes[i][1] * sizeof(float));
+        network->weights_sizes[i][0] = layers_node_count[i + 1];
+        network->weights_sizes[i][1] = layers_node_count[i];
+        weights[i] = malloc(network->weights_sizes[i][0] *
+                            network->weights_sizes[i][1] * sizeof(float));
         bias[i] = calloc(layers_node_count[i + 1], sizeof(float));
         layers[i + 1] = malloc(layers_node_count[i + 1] * sizeof(float));
-        mat_randomize(weights[i], weights_sizes[i][0] * weights_sizes[i][1]);
+        mat_randomize(weights[i], network->weights_sizes[i][0] *
+                                      network->weights_sizes[i][1]);
     }
 
     network->layers = layers;
@@ -160,7 +161,7 @@ void train(NeuralNetwork *network, LabeledImage *image) {
 
     float learning_rate = 0.03;
 
-    size_t output_size = network->layers_node_count[network->layer_count-1];
+    size_t output_size = network->layers_node_count[network->layer_count - 1];
     float *output_layer = network->layers[network->layer_count - 1];
     float *errors = malloc(output_size * sizeof(float));
     mat_substract(errors, targets, output_layer, output_size, 1);
@@ -170,50 +171,58 @@ void train(NeuralNetwork *network, LabeledImage *image) {
     mat_copy(output_layer, gradients, output_size);
     mat_apply_dsoftmax(gradients, output_size);
     mat_multiply_hadamard(gradients, gradients, errors, output_size, 1);
-    mat_multiply_scalar(gradients, gradients, learning_rate,
-                        output_size, 1);
+    mat_multiply_scalar(gradients, gradients, learning_rate, output_size, 1);
 
     float *hidden_t = malloc(network->layers_node_count[1] * sizeof(float));
-    float *weights_ho_deltas = malloc(
-        network->weights_sizes[1][0] * network->weights_sizes[1][1] * sizeof(float));
-    mat_transpose(hidden_t, network->layers[1], network->layers_node_count[1], 1);
+    float *weights_ho_deltas =
+        malloc(network->weights_sizes[1][0] * network->weights_sizes[1][1] *
+               sizeof(float));
+    mat_transpose(hidden_t, network->layers[1], network->layers_node_count[1],
+                  1);
     mat_multiply(weights_ho_deltas, gradients, hidden_t,
-                 network->layers_node_count[2], 1, network->layers_node_count[1]);
+                 network->layers_node_count[2], 1,
+                 network->layers_node_count[1]);
 
     mat_add(network->weights[1], network->weights[1], weights_ho_deltas,
             network->weights_sizes[1][0], network->weights_sizes[1][1]);
-    mat_add(network->bias[1], network->bias[1], gradients, network->layers_node_count[2], 1);
+    mat_add(network->bias[1], network->bias[1], gradients,
+            network->layers_node_count[2], 1);
 
     for (int j = network->layer_count - 2; j > 0; j--) {
-        float *weight = malloc(network->weights_sizes[j - 1][0] *
-                               network->weights_sizes[j - 1][1] * sizeof(float));
+        float *weight =
+            malloc(network->weights_sizes[j - 1][0] *
+                   network->weights_sizes[j - 1][1] * sizeof(float));
         float *layer_errors =
             malloc(network->layers_node_count[j] * sizeof(float));
         float *layer_gradient =
             malloc(network->layers_node_count[j] * sizeof(float));
-        mat_transpose(weight, network->weights[j - 1], network->weights_sizes[j - 1][0],
+        mat_transpose(weight, network->weights[j - 1],
+                      network->weights_sizes[j - 1][0],
                       network->weights_sizes[j - 1][1]);
         mat_multiply(layer_errors, weight, errors, network->weights_sizes[j][1],
                      network->weights_sizes[j][0], 1);
-        mat_copy(network->layers[j], layer_gradient, network->layers_node_count[j]);
+        mat_copy(network->layers[j], layer_gradient,
+                 network->layers_node_count[j]);
         mat_apply_dsigmoid(layer_gradient, network->layers_node_count[j]);
-        mat_multiply_hadamard(layer_gradient, layer_gradient,
-                              layer_errors, network->layers_node_count[j], 1);
-        mat_multiply_scalar(layer_gradient, layer_gradient,
-                            learning_rate, network->layers_node_count[j], 1);
+        mat_multiply_hadamard(layer_gradient, layer_gradient, layer_errors,
+                              network->layers_node_count[j], 1);
+        mat_multiply_scalar(layer_gradient, layer_gradient, learning_rate,
+                            network->layers_node_count[j], 1);
 
         float *previous_layer_T =
             malloc(network->layers_node_count[j - 1] * sizeof(float));
         float *weight_deltas =
-            malloc(network->weights_sizes[j - 1][0] * network->weights_sizes[j - 1][1] *
-                   sizeof(float));
+            malloc(network->weights_sizes[j - 1][0] *
+                   network->weights_sizes[j - 1][1] * sizeof(float));
         mat_transpose(previous_layer_T, network->layers[j - 1],
                       network->layers_node_count[j - 1], 1);
         mat_multiply(weight_deltas, layer_gradient, previous_layer_T,
-                     network->layers_node_count[j], 1, network->layers_node_count[j - 1]);
+                     network->layers_node_count[j], 1,
+                     network->layers_node_count[j - 1]);
 
         mat_add(network->weights[j - 1], network->weights[j - 1], weight_deltas,
-                network->weights_sizes[j - 1][0], network->weights_sizes[j - 1][1]);
+                network->weights_sizes[j - 1][0],
+                network->weights_sizes[j - 1][1]);
         mat_add(network->bias[j - 1], network->bias[j - 1], layer_gradient,
                 network->layers_node_count[j], 1);
 

@@ -36,10 +36,7 @@ int main(int argc, char **argv) {
     // Initialize randomizer
     srand((unsigned int)time(NULL));
 
-    // setup_network(layers_node_count, layer_count);
-
     // Build neural network
-    float learning_rate = 0.03;
     float weights_sizes[6][2];
 
     float **weights;
@@ -76,76 +73,8 @@ int main(int argc, char **argv) {
             }
             total++;
             correct += (int)max_index == dataset[dataset_index].label;
-
-            float targets[10];
-            get_target_array(targets, dataset[dataset_index]);
-
-            float *errors = malloc(output_size * sizeof(float));
-            mat_substract(errors, targets, output_layer, output_size, 1);
-
-            // Back Propagate
-            float *gradients = malloc(output_size * sizeof(float));
-            mat_copy(output_layer, gradients, output_size);
-            mat_apply_dsoftmax(gradients, output_size);
-            mat_multiply_hadamard(gradients, gradients, errors, output_size, 1);
-            mat_multiply_scalar(gradients, gradients, learning_rate,
-                                output_size, 1);
-
-            float *hidden_t = malloc(layers_node_count[1] * sizeof(float));
-            float *weights_ho_deltas = malloc(
-                weights_sizes[1][0] * weights_sizes[1][1] * sizeof(float));
-            mat_transpose(hidden_t, layers[1], layers_node_count[1], 1);
-            mat_multiply(weights_ho_deltas, gradients, hidden_t,
-                         layers_node_count[2], 1, layers_node_count[1]);
-
-            mat_add(weights[1], weights[1], weights_ho_deltas,
-                    weights_sizes[1][0], weights_sizes[1][1]);
-            mat_add(bias[1], bias[1], gradients, layers_node_count[2], 1);
-
-            for (int j = layer_count - 2; j > 0; j--) {
-                float *weight = malloc(weights_sizes[j - 1][0] *
-                                       weights_sizes[j - 1][1] * sizeof(float));
-                float *layer_errors =
-                    malloc(layers_node_count[j] * sizeof(float));
-                float *layer_gradient =
-                    malloc(layers_node_count[j] * sizeof(float));
-                mat_transpose(weight, weights[j - 1], weights_sizes[j - 1][0],
-                              weights_sizes[j - 1][1]);
-                mat_multiply(layer_errors, weight, errors, weights_sizes[j][1],
-                             weights_sizes[j][0], 1);
-                mat_copy(layers[j], layer_gradient, layers_node_count[j]);
-                mat_apply_dsigmoid(layer_gradient, layers_node_count[j]);
-                mat_multiply_hadamard(layer_gradient, layer_gradient,
-                                      layer_errors, layers_node_count[j], 1);
-                mat_multiply_scalar(layer_gradient, layer_gradient,
-                                    learning_rate, layers_node_count[j], 1);
-
-                float *previous_layer_T =
-                    malloc(layers_node_count[j - 1] * sizeof(float));
-                float *weight_deltas =
-                    malloc(weights_sizes[j - 1][0] * weights_sizes[j - 1][1] *
-                           sizeof(float));
-                mat_transpose(previous_layer_T, layers[j - 1],
-                              layers_node_count[j - 1], 1);
-                mat_multiply(weight_deltas, layer_gradient, previous_layer_T,
-                             layers_node_count[j], 1, layers_node_count[j - 1]);
-
-                mat_add(weights[j - 1], weights[j - 1], weight_deltas,
-                        weights_sizes[j - 1][0], weights_sizes[j - 1][1]);
-                mat_add(bias[j - 1], bias[j - 1], layer_gradient,
-                        layers_node_count[j], 1);
-
-                free(weight);
-                free(weight_deltas);
-                free(layer_gradient);
-                free(layer_errors);
-                free(previous_layer_T);
-            }
-
-            free(errors);
-            free(gradients);
-            free(weights_ho_deltas);
-            free(hidden_t);
+            
+            train(&network, &dataset[dataset_index]);
         }
         if (k % 10 == 0) {
             printf("[EPOCH %d] %d correct out of %d (%.2f%%)\n", k, correct,
@@ -162,7 +91,6 @@ int main(int argc, char **argv) {
     free(weights);
     free(bias);
     free(layers);
-
     free(dataset);
 }
 
@@ -224,6 +152,82 @@ void guess(float *input, NeuralNetwork *network) {
                               network->layers_node_count[j + 1]);
         }
     }
+}
+
+void train(NeuralNetwork *network, LabeledImage *image) {
+    float targets[10];
+    get_target_array(targets, *image);
+
+    float learning_rate = 0.03;
+
+    size_t output_size = network->layers_node_count[network->layer_count-1];
+    float *output_layer = network->layers[network->layer_count - 1];
+    float *errors = malloc(output_size * sizeof(float));
+    mat_substract(errors, targets, output_layer, output_size, 1);
+
+    // Back Propagate
+    float *gradients = malloc(output_size * sizeof(float));
+    mat_copy(output_layer, gradients, output_size);
+    mat_apply_dsoftmax(gradients, output_size);
+    mat_multiply_hadamard(gradients, gradients, errors, output_size, 1);
+    mat_multiply_scalar(gradients, gradients, learning_rate,
+                        output_size, 1);
+
+    float *hidden_t = malloc(network->layers_node_count[1] * sizeof(float));
+    float *weights_ho_deltas = malloc(
+        network->weights_sizes[1][0] * network->weights_sizes[1][1] * sizeof(float));
+    mat_transpose(hidden_t, network->layers[1], network->layers_node_count[1], 1);
+    mat_multiply(weights_ho_deltas, gradients, hidden_t,
+                 network->layers_node_count[2], 1, network->layers_node_count[1]);
+
+    mat_add(network->weights[1], network->weights[1], weights_ho_deltas,
+            network->weights_sizes[1][0], network->weights_sizes[1][1]);
+    mat_add(network->bias[1], network->bias[1], gradients, network->layers_node_count[2], 1);
+
+    for (int j = network->layer_count - 2; j > 0; j--) {
+        float *weight = malloc(network->weights_sizes[j - 1][0] *
+                               network->weights_sizes[j - 1][1] * sizeof(float));
+        float *layer_errors =
+            malloc(network->layers_node_count[j] * sizeof(float));
+        float *layer_gradient =
+            malloc(network->layers_node_count[j] * sizeof(float));
+        mat_transpose(weight, network->weights[j - 1], network->weights_sizes[j - 1][0],
+                      network->weights_sizes[j - 1][1]);
+        mat_multiply(layer_errors, weight, errors, network->weights_sizes[j][1],
+                     network->weights_sizes[j][0], 1);
+        mat_copy(network->layers[j], layer_gradient, network->layers_node_count[j]);
+        mat_apply_dsigmoid(layer_gradient, network->layers_node_count[j]);
+        mat_multiply_hadamard(layer_gradient, layer_gradient,
+                              layer_errors, network->layers_node_count[j], 1);
+        mat_multiply_scalar(layer_gradient, layer_gradient,
+                            learning_rate, network->layers_node_count[j], 1);
+
+        float *previous_layer_T =
+            malloc(network->layers_node_count[j - 1] * sizeof(float));
+        float *weight_deltas =
+            malloc(network->weights_sizes[j - 1][0] * network->weights_sizes[j - 1][1] *
+                   sizeof(float));
+        mat_transpose(previous_layer_T, network->layers[j - 1],
+                      network->layers_node_count[j - 1], 1);
+        mat_multiply(weight_deltas, layer_gradient, previous_layer_T,
+                     network->layers_node_count[j], 1, network->layers_node_count[j - 1]);
+
+        mat_add(network->weights[j - 1], network->weights[j - 1], weight_deltas,
+                network->weights_sizes[j - 1][0], network->weights_sizes[j - 1][1]);
+        mat_add(network->bias[j - 1], network->bias[j - 1], layer_gradient,
+                network->layers_node_count[j], 1);
+
+        free(weight);
+        free(weight_deltas);
+        free(layer_gradient);
+        free(layer_errors);
+        free(previous_layer_T);
+    }
+
+    free(errors);
+    free(gradients);
+    free(weights_ho_deltas);
+    free(hidden_t);
 }
 
 void get_target_array(float arr[10], LabeledImage img) {

@@ -1,5 +1,5 @@
 CPPFLAGS = -MMD
-CC = gcc -fsanitize=address
+CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -g \
 		 $(shell pkg-config --cflags sdl2 SDL2_image)
 LDFLAGS =

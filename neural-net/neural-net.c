@@ -27,6 +27,8 @@ int main(int argc, char **argv) {
     char *image_path = argv[1];
     size_t len_dataset;
     LabeledImage *dataset = load_dataset(image_path, &len_dataset);
+    size_t training_len = len_dataset*0.8;
+    printf("Training set = %zu\n", training_len);
 
     char *ptr;
     for (int i = 2; i < argc; i++) {
@@ -37,8 +39,6 @@ int main(int argc, char **argv) {
     srand((unsigned int)time(NULL));
 
     // Build neural network
-    float weights_sizes[6][2];
-
     float **weights;
     weights = malloc((layer_count - 1) * sizeof(float *));
 
@@ -53,33 +53,37 @@ int main(int argc, char **argv) {
     setup_network(&network, layers_node_count, layer_count, weights, bias,
                   layers);
 
-    for (int k = 0; k < 1; k++) {
-        int total = 0;
-        int correct = 0;
-        for (size_t i = 0; i < len_dataset; i++) {
+    for (int k = 0; k < 1000000000; k++) {
 
-            int dataset_index = rand() % len_dataset;
-
+        // TRAINING
+        for (size_t i = 0; i < training_len; i++) {
+            int dataset_index = rand() % training_len;
             guess(dataset[dataset_index].data, &network);
-
-            size_t output_size = layers_node_count[layer_count - 1];
-            float *output_layer = layers[layer_count - 1];
-
-            size_t max_index = 0;
-            for (size_t j = 0; j < output_size; j++) {
-                if (output_layer[j] > output_layer[max_index]) {
-                    max_index = j;
-                }
-            }
-            total++;
-            correct += (int)max_index == dataset[dataset_index].label;
-
             train(&network, &dataset[dataset_index]);
         }
-        if (k % 10 == 0) {
+
+        // CALCULATING SCORE ON UNSEEN IMAGES
+        //if (k % 10 == 0) {
+            int total = 0;
+            int correct = 0;
+            for (size_t i = training_len; i < len_dataset; i++) {
+                guess(dataset[i].data, &network);
+
+                size_t output_size = layers_node_count[layer_count - 1];
+                float *output_layer = layers[layer_count - 1];
+
+                size_t max_index = 0;
+                for (size_t j = 0; j < output_size; j++) {
+                    if (output_layer[j] > output_layer[max_index]) {
+                        max_index = j;
+                    }
+                }
+                total++;
+                correct += (int)max_index == dataset[i].label;
+            }
             printf("[EPOCH %d] %d correct out of %d (%.2f%%)\n", k, correct,
                    total, (float)correct * 100 / (float)total);
-        }
+        //}
     }
 
     for (int i = 0; i < layer_count - 1; i++) {
@@ -261,7 +265,7 @@ LabeledImage *load_dataset(char *path, size_t *len_d) {
     }
     closedir(d);
 
-    struct LabeledImage *dataset = malloc(len * sizeof(struct LabeledImage));
+    LabeledImage *dataset = malloc(len * sizeof(LabeledImage));
     d = opendir(path);
 
     size_t i = 0;
@@ -277,6 +281,13 @@ LabeledImage *load_dataset(char *path, size_t *len_d) {
         }
     }
     closedir(d);
+
+    for (size_t i = 0; i < len - 1; i++) {
+        size_t j = i + rand() / (RAND_MAX / (len - i) + 1);
+        LabeledImage t = dataset[j];
+        dataset[j] = dataset[i];
+        dataset[i] = t;
+    }
 
     printf("Loaded %zu images\n", len);
     (*len_d) = len;

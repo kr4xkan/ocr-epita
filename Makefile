@@ -26,4 +26,5 @@ clean:
 	${RM} ${DEP}
 	${RM} main
 
+#don't raise error if DEP files not found
 -include ${DEP}

@@ -5,66 +5,85 @@
 #include "../utils.h"
 #include "cutter.h"
 
+#define pi 3.1415926535
 
 int maxDist;
+int MT = 180; //max theta
 
 int minAverage = 200;
 int minPeak;
 
-// Array of teta values
-float cosArray[180];
-float sinArray[180];
-
-
-int jsp = 0;
 
 void DetectLines() {
-    // Creates all the values that teta will become in the loops
-    CreateAnglesArray();
-
-    
-    SDL_Surface *surface;
-    //Load the image
-    surface = LoadImage("DataSample/cutter/og1inverted.png");
-    if (!surface) {
+    SDL_Surface *surface = LoadImage("DataSample/cutter/og1inverted.png");
+    if (!surface) 
         errx(1, "Could not load image");
-    }
-    int w, h;
-    w = surface->w;
-    h = surface->h;
+
+    int w = surface->w;
+    int h = surface->h;
+    int * pixels = surface->pixels;
     printf("Image Loaded Succesfully with dimension: %dx%d!\n", w, h);
 
 
+    minPeak = h < w ? h/4 : w/4;
+
     
     // Creating the parameter space
-    // x: 180 (-pi/2 to pi/2)  y: -max_dist to max_dist 
-    // maxDist is the length of the diagonal of the image
+    // theta: 360   y: max_dist (length of diagonal) 
     maxDist = (int) sqrt((double)w*w + h*h) + 1;
 
     // Allocating a big chunk of memory during the compilation
-    unsigned char * space = calloc(maxDist * 360, sizeof(unsigned char));
-    if(space == NULL){
+    unsigned char * space = calloc(maxDist * MT, sizeof(unsigned char));
+    if(space == NULL)
         errx(1, "Could not create space");
-    }
-    printf("Parameter space created succesfully!\n");
+
+
+
+
 
     // Looking all the pixel for the white ones (lines)
     Uint8 r, g, b;
     for (int y = 0; y < h; y++){
         for (int x = 0; x < w; x++){
 
-            jsp ++;
             GetPixelColor(surface, x, y, &r, &g, &b);
-            unsigned char average = (r + g + b) / 3;
-            if (average > minAverage){
-                FillAcumulator(x, y, space);
+            if ((r + g + b) / 3 > minAverage){
+                
+                for (int theta = 0; theta < MT; theta++){
+                    int rho = x*cos(theta*pi/180) + y*sin(theta*pi/180);
+                    if (rho  < maxDist && rho > 0){
+                        space[abs(rho)*MT + theta] += 1;
+                    }
+                }
             }
         }
     }
     
+    
+    PrintMat(space);
 
-    PeakDetection(space, surface);
-    //PrintMat(space);
+    Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
+    int rho = 0;
+    for(int i = 0; i < maxDist * MT; i++){
+        if (i%MT == 0) 
+            rho += 1;
+
+        if (space[i] >= minPeak){
+            double theta = i%MT * pi / 180;
+            double a = cos(theta);
+            double b = sin(theta);
+            int x0 = a*rho;
+            int y0 = b*rho;
+            int x1 = x0 + 2000*(-b);
+            int y1 = y0 + 2000*a;
+            int x2 = x0 - 2000*(-b);
+            int y2 = y0 - 2000*a;
+            //printf("rho: %i   theta: %i  cos:%f  sin:%f ", rho, i%MT, a, b);
+            //printf("(x1, y1) = (%i, %i)   |   (x2, y2) = (%i, %i)\n", x1, y1, x2, y2);
+            DrawLine(pixels, w, h, x1, y1, x2, y2, color);
+//            DrawLine(surface, i%MT, rho);
+        }
+    }
 
 
     IMG_SavePNG(surface, "test.png");
@@ -72,78 +91,82 @@ void DetectLines() {
     // To avoid memory leak
     free(space);
     SDL_FreeSurface(surface);
-    printf("memory freed\n");
-    printf("%i\n", jsp);
 }
 
 
 
-
-void FillAcumulator(int x, int y, unsigned char * space){
-    for (int i = 0; i < 180; i++){
-        int rho = x*cosArray[i] + y*sinArray[i] + maxDist;
-        space[rho*180 + i] += 1;
-    }
-}
-
-
-
-void PeakDetection(unsigned char * space, SDL_Surface * surface){
-    unsigned char maxPeak = 0;
-    for (int i = 0; i < maxDist*360; i++){
-        if (space[i] > maxPeak)
-            maxPeak = space[i];
-    }
-
-
-    int y = -maxDist;
-    minPeak = maxPeak * 1;
-    for (int i = 181; i < maxDist*360 - 181; i++){
-        unsigned char val = space[i];
-        if (val >= minPeak)
-            if (val > space[i-1] && val > space[i+1] && val > space[i-180] && val > space[i+180])
-                DrawLine(surface, i%180-90, y);
-
-        if(i%180 == 0) y++;
-    }
-}
-
-void CreateAnglesArray(){
-    int i = 0;
-    for (int teta = -90; teta < 90; teta++){
-        float angle = teta * 3.141592 / 180; 
-        cosArray[i] = cos(angle);
-        sinArray[i] = sin(angle);
-        i++;
-    }
-    
-}
 
 //----------------------------------UTILS------------------------------
-void DrawLine(SDL_Surface * surface, int teta, int rho){
-    float angle = teta * 3.141592 / 180; 
-    float costeta = cos(angle);
-    float sinteta = sin(angle);
+void DrawLine(int *pixels,
+          long int w,
+          long int h,
+          long int x1,
+          long int y1,
+          long int x2,
+          long int y2,
+          Uint32 color)
+{
+    int i, dx, dy, maxmove;
+    int d, dinc1, dinc2;
+    int x, xinc1, xinc2;
+    int y, yinc1, yinc2;
 
-    SDL_Rect r;
-    r.w = 1;
-    r.h = 1;
-    for (int x = 0; x < surface->w; x++){
-        int y = (rho - x*costeta) / sinteta;
-        r.x = x;
-        r.y = y;
-        SDL_FillRect(surface, &r, SDL_MapRGB(surface->format, 255, 0, 0));
+    dx = x1 > x2 ? x1 - x2 : x2 - x1;
+    dy = y1 > y2 ? y1 - y2 : y2 - y1;
+
+    if (dx >= dy) {
+    maxmove = dx + 1;
+    d = (2 * dy) - dx;
+    dinc1 = 2 * dy;
+    dinc2 = (dy - dx) * 2;
+    xinc1 = 1;
+    xinc2 = 1;
+    yinc1 = 0;
+    yinc2 = 1;
+    } else {
+    maxmove = dy + 1;
+    d = (2 * dx) - dy;
+    dinc1 = 2 * dx;
+    dinc2 = (dx - dy) * 2;
+    xinc1 = 0;
+    xinc2 = 1;
+    yinc1 = 1;
+    yinc2 = 1;
     }
-    
-}
 
+    if (x1 > x2) {
+    xinc1 = -xinc1;
+    xinc2 = -xinc2;
+    }
+
+    if (y1 > y2) {
+    yinc1 = -yinc1;
+    yinc2 = -yinc2;
+    }
+
+    x = x1;
+    y = y1;
+
+    for (i = 0; i < maxmove; ++i) {
+    if (x >= 0 && x < w && y >= 0 && y < h) pixels[y * w + x] = color;
+    if (d < 0) {
+        d += dinc1;
+        x += xinc1;
+        y += yinc1;
+    } else {
+        d += dinc2;
+        x += xinc2;
+        y += yinc2;
+    }
+    }
+}
 
 
 void PrintMat(unsigned char * space){
-    for(int i = 0; i < maxDist * 360; i ++){
-        if(i % 180 == 0)
+    for(int i = 0; i < maxDist * MT; i ++){
+        if(i % MT == 0)
             printf("\n");
-        if(space[i] >= minPeak){
+        if(space[i] >= minPeak){ 
             printf("\033[1;31m");
             printf("%3u ", space[i]);
         }

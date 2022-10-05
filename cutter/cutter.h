@@ -3,7 +3,12 @@
 
 void DetectLines();
 void FillAcumulator(int x, int y, unsigned char * space);
-void DrawLine(SDL_Surface * surf, int teta, int rho);
 void PrintMat(unsigned char * space);
-void CreateAnglesArray();
-void PeakDetection(unsigned char * space, SDL_Surface * surface);
+void DrawLine(int *pixels,
+          long int w,
+          long int h,
+          long int x1,
+          long int y1,
+          long int x2,
+          long int y2,
+          Uint32 color);

@@ -5,13 +5,14 @@
 #include "../utils.h"
 #include "cutter.h"
 
+
 #define pi 3.1415926535
 
 int maxDist;
 int MT = 180; //max theta
 
-int minAverage = 200;
-int minPeak;
+int minAverage = 240;
+unsigned int minPeak;
 
 
 void DetectLines() {
@@ -25,15 +26,14 @@ void DetectLines() {
     printf("Image Loaded Succesfully with dimension: %dx%d!\n", w, h);
 
 
-    minPeak = h < w ? h/4 : w/4;
-
+    minPeak = h < w ? h/1.5 : w/1.5;
     
     // Creating the parameter space
     // theta: 360   y: max_dist (length of diagonal) 
     maxDist = (int) sqrt((double)w*w + h*h) + 1;
 
     // Allocating a big chunk of memory during the compilation
-    unsigned char * space = calloc(maxDist * MT, sizeof(unsigned char));
+    unsigned int * space = calloc(maxDist * MT, sizeof(unsigned int));
     if(space == NULL)
         errx(1, "Could not create space");
 
@@ -47,8 +47,7 @@ void DetectLines() {
         for (int x = 0; x < w; x++){
 
             GetPixelColor(surface, x, y, &r, &g, &b);
-            if ((r + g + b) / 3 > minAverage){
-                
+            if ((r + g + b) / 3 >= minAverage){
                 for (int theta = 0; theta < MT; theta++){
                     int rho = x*cos(theta*pi/180) + y*sin(theta*pi/180);
                     if (rho  < maxDist && rho > 0){
@@ -60,7 +59,7 @@ void DetectLines() {
     }
     
     
-    PrintMat(space);
+    //PrintMat(space);
 
     Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
     int rho = 0;
@@ -69,6 +68,7 @@ void DetectLines() {
             rho += 1;
 
         if (space[i] >= minPeak){
+
             double theta = i%MT * pi / 180;
             double a = cos(theta);
             double b = sin(theta);
@@ -78,10 +78,7 @@ void DetectLines() {
             int y1 = y0 + 2000*a;
             int x2 = x0 - 2000*(-b);
             int y2 = y0 - 2000*a;
-            //printf("rho: %i   theta: %i  cos:%f  sin:%f ", rho, i%MT, a, b);
-            //printf("(x1, y1) = (%i, %i)   |   (x2, y2) = (%i, %i)\n", x1, y1, x2, y2);
             DrawLine(pixels, w, h, x1, y1, x2, y2, color);
-//            DrawLine(surface, i%MT, rho);
         }
     }
 
@@ -162,7 +159,7 @@ void DrawLine(int *pixels,
 }
 
 
-void PrintMat(unsigned char * space){
+void PrintMat(unsigned int * space){
     for(int i = 0; i < maxDist * MT; i ++){
         if(i % MT == 0)
             printf("\n");

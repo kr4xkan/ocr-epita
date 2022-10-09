@@ -2,8 +2,10 @@
 #include <SDL2/SDL_image.h>
 
 void DetectLines();
-void FillAcumulator(int x, int y, unsigned int * space);
-void PrintMat(unsigned int * space);
+void DetectPeaks(unsigned int * space, int spaceSize);
+
+
+void PrintMat(unsigned int * space, int spaceSize);
 void DrawLine(int *pixels,
           long int w,
           long int h,

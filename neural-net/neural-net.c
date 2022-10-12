@@ -21,6 +21,9 @@ int main(int argc, char **argv) {
 
     test_matrix();
 
+    FILE *outputFile;
+    outputFile = fopen("out.csv", "a");
+
     int layer_count = argc - 2;
     int layers_node_count[6];
 
@@ -53,12 +56,28 @@ int main(int argc, char **argv) {
     setup_network(&network, layers_node_count, layer_count, weights, bias,
                   layers);
 
-    for (int k = 0; k < 1000000000; k++) {
+    fprintf(outputFile, "epoch,training,validation\n");
+    for (int k = 0; k < 2000; k++) {
 
         // TRAINING
+        int t_total = 0;
+        int t_correct = 0;
+
         for (size_t i = 0; i < training_len; i++) {
             int dataset_index = rand() % training_len;
+            //int dataset_index = i;
             guess(dataset[dataset_index].data, &network);
+            size_t output_size = layers_node_count[layer_count - 1];
+            float *output_layer = network.layers[layer_count - 1];
+
+            size_t max_index = 0;
+            for (size_t j = 0; j < output_size; j++) {
+                if (output_layer[j] > output_layer[max_index]) {
+                    max_index = j;
+                }
+            }
+            t_total++;
+            t_correct += (int)max_index == dataset[i].label;
             train(&network, &dataset[dataset_index]);
         }
 
@@ -81,8 +100,10 @@ int main(int argc, char **argv) {
                 total++;
                 correct += (int)max_index == dataset[i].label;
             }
-            printf("[EPOCH %d] %d correct out of %d (%.2f%%)\n", k, correct,
-                   total, (float)correct * 100 / (float)total);
+            printf("%d\n", k);
+            fprintf(outputFile, "%d,%.2f,%.2f\n", k,
+                    (float)t_correct * 100 / (float)t_total,
+                    (float)correct * 100 / (float)total);
         //}
     }
 
@@ -96,6 +117,7 @@ int main(int argc, char **argv) {
     free(bias);
     free(layers);
     free(dataset);
+    fclose(outputFile);
 }
 
 void setup_network(NeuralNetwork *network, int *layers_node_count,

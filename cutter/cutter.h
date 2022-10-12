@@ -2,10 +2,11 @@
 #include <SDL2/SDL_image.h>
 
 void DetectLines();
-void DetectPeaks(unsigned int * space, int spaceSize);
+unsigned int FindMinPeak(unsigned int * space, int spaceSize);
+SDL_Surface* RotateSurface(SDL_Surface* origine, float angle);
 
 
-void PrintMat(unsigned int * space, int spaceSize);
+void PrintMat(unsigned int * space, int spaceSize, unsigned int minPeak);
 void DrawLine(int *pixels,
           long int w,
           long int h,

@@ -26,7 +26,7 @@ void setup_network(NeuralNetwork *network, int *layers_node_count,
 
 void guess(float *input, NeuralNetwork *network);
 
-void train(NeuralNetwork *network, LabeledImage *image);
+void train(NeuralNetwork *network, float *targets);
 
 void get_input(float *res, char *image_path);
 

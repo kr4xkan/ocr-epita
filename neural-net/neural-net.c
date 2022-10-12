@@ -77,8 +77,11 @@ int main(int argc, char **argv) {
                 }
             }
             t_total++;
-            t_correct += (int)max_index == dataset[i].label;
-            train(&network, &dataset[dataset_index]);
+            t_correct += (int)max_index == dataset[dataset_index].label;
+
+            float targets[10];
+            get_target_array(targets, dataset[dataset_index]);
+            train(&network, targets);
         }
 
         // CALCULATING SCORE ON UNSEEN IMAGES
@@ -100,10 +103,13 @@ int main(int argc, char **argv) {
                 total++;
                 correct += (int)max_index == dataset[i].label;
             }
-            printf("%d\n", k);
+            printf("%d => Training: %.2f%% | Fresh: %.2f%%\n", k,
+                    (float)t_correct * 100 / (float)t_total,
+                    (float)correct * 100 / (float)total);
             fprintf(outputFile, "%d,%.2f,%.2f\n", k,
                     (float)t_correct * 100 / (float)t_total,
                     (float)correct * 100 / (float)total);
+            fflush(outputFile);
         //}
     }
 
@@ -181,10 +187,7 @@ void guess(float *input, NeuralNetwork *network) {
     }
 }
 
-void train(NeuralNetwork *network, LabeledImage *image) {
-    float targets[10];
-    get_target_array(targets, *image);
-
+void train(NeuralNetwork *network, float *targets) {
     float learning_rate = 0.03;
 
     size_t output_size = network->layers_node_count[network->layer_count - 1];

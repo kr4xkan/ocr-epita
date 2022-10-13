@@ -7,22 +7,25 @@
 
 
 #define pi 3.1415926535
-
-
-int maxTheta;
+#define maxTheta 360
 
 //min value needed by a pixel to be counted as detected
 int minAverage = 200;
 
-
 //minPeak = maxPeak (biggest line) * ratio 
 float ratio = 0.50;
 
+int spaceSize;
+int maxDist;
+unsigned int minPeak;
 
-void DetectLines() {
+double cosArray[maxTheta];
+double sinArray[maxTheta];
+
+
+void DetectLines(char original[], char new[]){
     //Load the surface
-    //SDL_Surface *surface = LoadImage("DataSample/cutter/og1.png");
-    SDL_Surface *surface = LoadImage("DataSample/cutter/og1rotate.png");
+    SDL_Surface *surface = LoadImage(original);
     if (!surface) 
         errx(1, "Could not load image");
 
@@ -35,9 +38,8 @@ void DetectLines() {
 
     // Creating the parameter space
     // x: maxTheta    y: max_dist (length of diagonal) 
-    maxTheta = 360;
-    int maxDist = (int) sqrt((double)w*w + h*h) + 1;
-    int spaceSize = maxTheta * maxDist;
+    maxDist = (int) sqrt((double)w*w + h*h) + 1;
+    spaceSize = maxTheta * maxDist;
     unsigned int * space = calloc(spaceSize, sizeof(unsigned int));
     if(space == NULL)
         errx(1, "Could not create space");
@@ -45,19 +47,55 @@ void DetectLines() {
 
 
     // Compute all cos and sin values beforehand to avoid doing it 69420 times
-    double cosArray[maxTheta];
-    double sinArray[maxTheta];
     for (int i = 0; i < maxTheta; i++){
         cosArray[i] = cos(i*pi/180);
         sinArray[i] = sin(i*pi/180);
-
     }
 
 
-    // Looking all the pixel for the white ones (lines)
+
+
+    FillAcumulator(surface, space);
+
+    minPeak = FindMinPeak(space, spaceSize); 
+
+    DrawLines(surface, space, pixels);
+
+    //PrintMat(space, spaceSize, minPeak);
+
+
+    CheckRotation(surface, space);
+
+
+
+
+
+    IMG_SavePNG(surface, new);
+
+    // To avoid memory leak
+    free(space);
+    SDL_FreeSurface(surface);
+}
+
+
+
+unsigned int FindMinPeak(unsigned int * space, int spaceSize){
+    unsigned int maxPeak = 0;
+    for (int i = 0; i < spaceSize; i++){
+        if (space[i] > maxPeak)
+            maxPeak = space[i];
+    }
+
+    return maxPeak * ratio;
+}
+
+
+void FillAcumulator(SDL_Surface *surface, unsigned int *space){
+
     Uint8 r, g, b;
-    for (int y = 0; y < h; y++){
-        for (int x = 0; x < w; x++){
+    //Cycle trhough all the pixels to find the white ones
+    for (int y = 0; y < surface->h; y++){
+        for (int x = 0; x < surface->w; x++){
 
             GetPixelColor(surface, x, y, &r, &g, &b);
             if ((r + g + b) / 3 >= minAverage){
@@ -72,19 +110,16 @@ void DetectLines() {
             }
         }
     }
+}
 
 
 
+void CheckRotation(SDL_Surface *surface, unsigned int *space){
 
-    unsigned int minPeak = FindMinPeak(space, spaceSize); 
-
-    //PrintMat(space, spaceSize, minPeak);
-
+    // Find the angle to rotate the image (if needed) 
     int div = 0;
     int sum = 0;
     int rotateNeeded = 1;
-
-    Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
 
     int rho = 0;
     for(int i = 0; i < spaceSize; i++){
@@ -102,21 +137,6 @@ void DetectLines() {
                 sum += theta;
                 div++;
             }
-
-            //Drawing the corresponding lines
-            double thetaRad = theta * pi / 180;
-            double a = cos(thetaRad);
-            double b = sin(thetaRad);
-            int x0 = a*rho;
-            int y0 = b*rho;
-            int x1 = x0 + 2000*(-b);
-            int y1 = y0 + 2000*a;
-            int x2 = x0 - 2000*(-b);
-            int y2 = y0 - 2000*a;
-             
-             
-            DrawLine(pixels, w, h, x1, y1, x2, y2, color);
-
         }
 
         if (i%maxTheta == 0) 
@@ -132,7 +152,7 @@ void DetectLines() {
             printf("Rotate %i° Clockwise\n", 90-angle);
             rotated = RotateSurface(surface, -90+angle);
         }
-        else{
+        else {
             printf("Rotate %i° CounterClockwise\n", angle);
             rotated = RotateSurface(surface, angle);
         }
@@ -141,27 +161,6 @@ void DetectLines() {
         IMG_SavePNG(rotated, "rotate.png");
         SDL_FreeSurface(rotated);
     }
-
-
-
-    IMG_SavePNG(surface, "test.png");
-
-    // To avoid memory leak
-    free(space);
-    SDL_FreeSurface(surface);
-}
-
-
-
-
-unsigned int FindMinPeak(unsigned int * space, int spaceSize){
-    unsigned int maxPeak = 0;
-    for (int i = 0; i < spaceSize; i++){
-        if (space[i] > maxPeak)
-            maxPeak = space[i];
-    }
-
-    return maxPeak * ratio;
 }
 
 
@@ -173,20 +172,20 @@ SDL_Surface* RotateSurface(SDL_Surface* surface, float angle){
     int mx, my, mxdest, mydest;
     int bx, by;
 
-    //switch angle to radian
+    // Switch angle to radian
     angle = -angle * pi / 180.0;
 
-    /*pour éviter pleins d'appel, on stocke les valeurs*/
+    // Cache values 
     float cosVal = cos(angle);
     float sinVal = sin(angle);
 
-    /*calcul de la taille de l'image de dest*/
-    double largeurdest = ceil(surface->w * fabs(cosVal) + surface->h * fabs(sinVal));
-    double hauteurdest = ceil(surface->w * fabs(sinVal) + surface->h * fabs(cosVal));
+    // Size of new surface  
+    double widthDest = ceil(surface->w * fabs(cosVal) + surface->h * fabs(sinVal));
+    double heightDest = ceil(surface->w * fabs(sinVal) + surface->h * fabs(cosVal));
 
 
     //Create surface
-    dest = SDL_CreateRGBSurface(SDL_SWSURFACE, largeurdest, hauteurdest, 
+    dest = SDL_CreateRGBSurface(SDL_SWSURFACE, widthDest, heightDest, 
             surface->format->BitsPerPixel,
             surface->format->Rmask, 
             surface->format->Gmask, 
@@ -206,12 +205,6 @@ SDL_Surface* RotateSurface(SDL_Surface* surface, float angle){
     for(int j = 0; j < dest->h; j++){
         for(int i = 0; i < dest->w; i++)
         {
-            /* on détermine la valeur de pixel qui correspond le mieux pour la position
-             * i,j de la surface de dest */
-
-            /* on détermine la meilleure position sur la surface d'surface en appliquant
-             * une matrice de rotation inverse
-             */
 
             bx = (ceil (cosVal * (i-mxdest) + sinVal * (j-mydest) + mx));
             by = (ceil (-sinVal * (i-mxdest) + cosVal * (j-mydest) + my));
@@ -226,6 +219,11 @@ SDL_Surface* RotateSurface(SDL_Surface* surface, float angle){
 
     return dest;
 }
+
+
+
+
+
 
 //----------------------------------UTILS--------------------------
 void PrintMat(unsigned int * space, int spaceSize, unsigned int minPeak){
@@ -252,6 +250,41 @@ void PrintMat(unsigned int * space, int spaceSize, unsigned int minPeak){
     printf("\n");
 }
 
+
+
+void DrawLines(SDL_Surface *surface, unsigned int *space, int *pixels){
+    Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
+
+    int rho = 0;
+    for(int i = 0; i < spaceSize; i++){
+
+        int theta = i%maxTheta;
+
+        unsigned int val = space[i];
+        // A peak has its value greater than minPeak and gretaer or equal than its 4 closest neighbours
+        // neighbours:                 left                right                      top                      bottom
+        if (val >= minPeak && val >= space[i-1] && val >= space[i+1] && val >= space[i-maxTheta] && val >= space[i+maxTheta]){
+
+
+            //Drawing the corresponding lines
+            double thetaRad = theta * pi / 180;
+            double a = cos(thetaRad);
+            double b = sin(thetaRad);
+            int x0 = a*rho;
+            int y0 = b*rho;
+            int x1 = x0 + 2000*(-b);
+            int y1 = y0 + 2000*a;
+            int x2 = x0 - 2000*(-b);
+            int y2 = y0 - 2000*a;
+             
+            DrawLine(pixels, surface->w, surface->h, x1, y1, x2, y2, color);
+
+        }
+
+        if (i%maxTheta == 0) 
+            rho ++;
+    }
+}
 
 
 void DrawLine(int *pixels,

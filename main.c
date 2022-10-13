@@ -8,8 +8,9 @@
 
 int main() {
     clock_t t = clock();
-    /*neural_test();*/
-    DetectLines();
+    
+    DetectLines("DataSample/cutter/og1rotate.png", "test.png");
+
     t = clock() - t;
     double time_taken = ((double)t)/CLOCKS_PER_SEC; // in seconds
  

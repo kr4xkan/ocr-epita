@@ -23,15 +23,10 @@ double cosArray[maxTheta];
 double sinArray[maxTheta];
 
 
-void DetectLines(char original[], char new[]){
-    //Load the surface
-    SDL_Surface *surface = LoadImage(original);
-    if (!surface) 
-        errx(1, "Could not load image");
+unsigned int* DetectLines(SDL_Surface *surface){
 
     int w = surface->w;
     int h = surface->h;
-    int * pixels = surface->pixels;
     printf("Image Loaded Succesfully with dimension: %dx%d!\n", w, h);
 
 
@@ -53,29 +48,14 @@ void DetectLines(char original[], char new[]){
     }
 
 
-
-
     FillAcumulator(surface, space);
-
     minPeak = FindMinPeak(space, spaceSize); 
 
-    DrawLines(surface, space, pixels);
-
-    //PrintMat(space, spaceSize, minPeak);
-
-
-    CheckRotation(surface, space);
-
-
-
-
-
-    IMG_SavePNG(surface, new);
-
-    // To avoid memory leak
-    free(space);
-    SDL_FreeSurface(surface);
+    return space;
 }
+
+
+
 
 
 
@@ -114,7 +94,7 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *space){
 
 
 
-void CheckRotation(SDL_Surface *surface, unsigned int *space){
+SDL_Surface* CheckRotation(SDL_Surface *surface, unsigned int *space){
 
     // Find the angle to rotate the image (if needed) 
     int div = 0;
@@ -144,10 +124,11 @@ void CheckRotation(SDL_Surface *surface, unsigned int *space){
     }
 
 
+
+    SDL_Surface *rotated = NULL;
     if (rotateNeeded){
         int angle = sum / div;
 
-        SDL_Surface *rotated;
         if (angle >= 45){
             printf("Rotate %i° Clockwise\n", 90-angle);
             rotated = RotateSurface(surface, -90+angle);
@@ -157,10 +138,9 @@ void CheckRotation(SDL_Surface *surface, unsigned int *space){
             rotated = RotateSurface(surface, angle);
         }
 
-
-        IMG_SavePNG(rotated, "rotate.png");
-        SDL_FreeSurface(rotated);
     }
+
+    return rotated;
 }
 
 
@@ -168,7 +148,7 @@ void CheckRotation(SDL_Surface *surface, unsigned int *space){
 
 SDL_Surface* RotateSurface(SDL_Surface* surface, float angle){
     SDL_Surface* dest;
-    Uint32 couleur;
+    Uint32 color;
     int mx, my, mxdest, mydest;
     int bx, by;
 
@@ -211,8 +191,8 @@ SDL_Surface* RotateSurface(SDL_Surface* surface, float angle){
 
             //Check if the found coordinates are inside the new surface
             if (bx >=0 && bx < surface->w && by >= 0 && by < surface->h){
-                couleur = GetPixelData(surface, bx, by);
-                SetPixelData(dest, i, j, couleur);
+                color = GetPixelData(surface, bx, by);
+                SetPixelData(dest, i, j, color);
             }
         }
     }
@@ -226,7 +206,7 @@ SDL_Surface* RotateSurface(SDL_Surface* surface, float angle){
 
 
 //----------------------------------UTILS--------------------------
-void PrintMat(unsigned int * space, int spaceSize, unsigned int minPeak){
+void PrintMat(unsigned int * space){
     for(int i = 0; i < spaceSize; i ++){
         if(i % maxTheta == 0)
             printf("\n");

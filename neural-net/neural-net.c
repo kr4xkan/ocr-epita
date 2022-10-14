@@ -12,9 +12,9 @@
 #include "neural-net.h"
 
 int main(int argc, char **argv) {
-    if (argc < 5 || argc > 9) {
+    if (argc < 6 || argc > 9) {
         errx(1, "\nUsage:\n"
-                "./neural image_path nb_input nb_hidden1 ... nb_hidden(n) "
+                "./neural image_path learning_rate nb_input nb_hidden1 ... nb_hidden(n) "
                 "nb_output\n\n"
                 "Maximum of 5 hidden layers");
     }
@@ -24,9 +24,10 @@ int main(int argc, char **argv) {
     FILE *outputFile;
     outputFile = fopen("out.csv", "a");
 
-    int layer_count = argc - 2;
+    int layer_count = argc - 3;
     int layers_node_count[6];
 
+    float learning_rate = atof(argv[2]);
     char *image_path = argv[1];
     size_t len_dataset;
     LabeledImage *dataset = load_dataset(image_path, &len_dataset);
@@ -34,8 +35,8 @@ int main(int argc, char **argv) {
     printf("Training set = %zu\n", training_len);
 
     char *ptr;
-    for (int i = 2; i < argc; i++) {
-        layers_node_count[i - 2] = strtol(argv[i], &ptr, 10);
+    for (int i = 3; i < argc; i++) {
+        layers_node_count[i - 3] = strtol(argv[i], &ptr, 10);
     }
 
     // Initialize randomizer
@@ -48,12 +49,12 @@ int main(int argc, char **argv) {
     float **bias;
     bias = malloc((layer_count - 1) * sizeof(float *));
 
-    float **layers;
-    layers = malloc(layer_count * sizeof(float *));
+    Layer *layers;
+    layers = calloc(layer_count, sizeof(Layer));
 
     NeuralNetwork network;
 
-    setup_network(&network, layers_node_count, layer_count, weights, bias,
+    setup_network(&network, layers_node_count, learning_rate, layer_count, weights, bias,
                   layers);
 
     fprintf(outputFile, "epoch,training,validation\n");
@@ -65,21 +66,12 @@ int main(int argc, char **argv) {
 
         for (size_t i = 0; i < training_len; i++) {
             int dataset_index = rand() % training_len;
-            //int dataset_index = i;
+
             guess(dataset[dataset_index].data, &network);
-            size_t output_size = layers_node_count[layer_count - 1];
-            float *output_layer = network.layers[layer_count - 1];
-
-            size_t max_index = 0;
-            for (size_t j = 0; j < output_size; j++) {
-                if (output_layer[j] > output_layer[max_index]) {
-                    max_index = j;
-                }
-            }
             t_total++;
-            t_correct += (int)max_index == dataset[dataset_index].label;
+            t_correct += is_prediction_correct(&network, dataset[dataset_index].label);
 
-            float targets[10];
+            float targets[9];
             get_target_array(targets, dataset[dataset_index]);
             train(&network, targets);
         }
@@ -90,18 +82,8 @@ int main(int argc, char **argv) {
             int correct = 0;
             for (size_t i = training_len; i < len_dataset; i++) {
                 guess(dataset[i].data, &network);
-
-                size_t output_size = layers_node_count[layer_count - 1];
-                float *output_layer = layers[layer_count - 1];
-
-                size_t max_index = 0;
-                for (size_t j = 0; j < output_size; j++) {
-                    if (output_layer[j] > output_layer[max_index]) {
-                        max_index = j;
-                    }
-                }
                 total++;
-                correct += (int)max_index == dataset[i].label;
+                correct += is_prediction_correct(&network, dataset[i].label);
             }
             printf("%d => Training: %.2f%% | Fresh: %.2f%%\n", k,
                     (float)t_correct * 100 / (float)t_total,
@@ -111,12 +93,15 @@ int main(int argc, char **argv) {
                     (float)correct * 100 / (float)total);
             fflush(outputFile);
         //}
+
+        if (k % 10 == 0) {
+            mat_print(network.weights[1], network.weights_sizes[1][0], network.weights_sizes[1][1]);
+        }
     }
 
     for (int i = 0; i < layer_count - 1; i++) {
         free(weights[i]);
         free(bias[i]);
-        free(layers[i + 1]);
     }
 
     free(weights);
@@ -126,16 +111,19 @@ int main(int argc, char **argv) {
     fclose(outputFile);
 }
 
-void setup_network(NeuralNetwork *network, int *layers_node_count,
+void setup_network(NeuralNetwork *network, int *layers_node_count, float learning_rate,
                    int layer_count, float **weights, float **bias,
-                   float **layers) {
+                   Layer *layers) {
+
     for (int i = 0; i < layer_count - 1; i++) {
         network->weights_sizes[i][0] = layers_node_count[i + 1];
         network->weights_sizes[i][1] = layers_node_count[i];
         weights[i] = malloc(network->weights_sizes[i][0] *
                             network->weights_sizes[i][1] * sizeof(float));
         bias[i] = calloc(layers_node_count[i + 1], sizeof(float));
-        layers[i + 1] = malloc(layers_node_count[i + 1] * sizeof(float));
+        layers[i + 1].data = malloc(layers_node_count[i + 1] * sizeof(float));
+        layers[i + 1].size = layers_node_count[i + 1];
+        layers[i + 1].disabled = calloc(layers_node_count[i + 1], sizeof(char));
         mat_randomize(weights[i], network->weights_sizes[i][0] *
                                       network->weights_sizes[i][1]);
     }
@@ -145,6 +133,7 @@ void setup_network(NeuralNetwork *network, int *layers_node_count,
     network->weights = weights;
     network->layer_count = layer_count;
     network->layers_node_count = layers_node_count;
+    network->learning_rate = learning_rate;
 
     return;
 
@@ -166,32 +155,30 @@ void setup_network(NeuralNetwork *network, int *layers_node_count,
 }
 
 void guess(float *input, NeuralNetwork *network) {
-    network->layers[0] = input;
+    network->layers[0].data = input;
 
     // FeedForward
     for (int j = 0; j < network->layer_count - 1; j++) {
-        mat_multiply(network->layers[j + 1], network->weights[j],
-                     network->layers[j], network->layers_node_count[j + 1],
+        mat_multiply(network->layers[j + 1].data, network->weights[j],
+                     network->layers[j].data, network->layers_node_count[j + 1],
                      network->layers_node_count[j], 1);
-        mat_add(network->layers[j + 1], network->layers[j + 1],
+        mat_add(network->layers[j + 1].data, network->layers[j + 1].data,
                 network->bias[j], network->layers_node_count[j + 1], 1);
 
         // Sigmoid for hidden layers, Softmax for output layer
         if (j + 1 != network->layer_count - 1) {
-            mat_apply_sigmoid(network->layers[j + 1],
+            mat_apply_sigmoid(network->layers[j + 1].data,
                               network->layers_node_count[j + 1]);
         } else {
-            mat_apply_softmax(network->layers[j + 1],
+            mat_apply_softmax(network->layers[j + 1].data,
                               network->layers_node_count[j + 1]);
         }
     }
 }
 
 void train(NeuralNetwork *network, float *targets) {
-    float learning_rate = 0.03;
-
     size_t output_size = network->layers_node_count[network->layer_count - 1];
-    float *output_layer = network->layers[network->layer_count - 1];
+    float *output_layer = network->layers[network->layer_count - 1].data;
     float *errors = malloc(output_size * sizeof(float));
     mat_substract(errors, targets, output_layer, output_size, 1);
 
@@ -200,13 +187,13 @@ void train(NeuralNetwork *network, float *targets) {
     mat_copy(output_layer, gradients, output_size);
     mat_apply_dsoftmax(gradients, output_size);
     mat_multiply_hadamard(gradients, gradients, errors, output_size, 1);
-    mat_multiply_scalar(gradients, gradients, learning_rate, output_size, 1);
+    mat_multiply_scalar(gradients, gradients, network->learning_rate, output_size, 1);
 
     float *hidden_t = malloc(network->layers_node_count[1] * sizeof(float));
     float *weights_ho_deltas =
         malloc(network->weights_sizes[1][0] * network->weights_sizes[1][1] *
                sizeof(float));
-    mat_transpose(hidden_t, network->layers[1], network->layers_node_count[1],
+    mat_transpose(hidden_t, network->layers[1].data, network->layers_node_count[1],
                   1);
     mat_multiply(weights_ho_deltas, gradients, hidden_t,
                  network->layers_node_count[2], 1,
@@ -230,12 +217,12 @@ void train(NeuralNetwork *network, float *targets) {
                       network->weights_sizes[j - 1][1]);
         mat_multiply(layer_errors, weight, errors, network->weights_sizes[j][1],
                      network->weights_sizes[j][0], 1);
-        mat_copy(network->layers[j], layer_gradient,
+        mat_copy(network->layers[j].data, layer_gradient,
                  network->layers_node_count[j]);
         mat_apply_dsigmoid(layer_gradient, network->layers_node_count[j]);
         mat_multiply_hadamard(layer_gradient, layer_gradient, layer_errors,
                               network->layers_node_count[j], 1);
-        mat_multiply_scalar(layer_gradient, layer_gradient, learning_rate,
+        mat_multiply_scalar(layer_gradient, layer_gradient, network->learning_rate,
                             network->layers_node_count[j], 1);
 
         float *previous_layer_T =
@@ -243,7 +230,7 @@ void train(NeuralNetwork *network, float *targets) {
         float *weight_deltas =
             malloc(network->weights_sizes[j - 1][0] *
                    network->weights_sizes[j - 1][1] * sizeof(float));
-        mat_transpose(previous_layer_T, network->layers[j - 1],
+        mat_transpose(previous_layer_T, network->layers[j - 1].data,
                       network->layers_node_count[j - 1], 1);
         mat_multiply(weight_deltas, layer_gradient, previous_layer_T,
                      network->layers_node_count[j], 1,
@@ -268,8 +255,28 @@ void train(NeuralNetwork *network, float *targets) {
     free(hidden_t);
 }
 
-void get_target_array(float arr[10], LabeledImage img) {
-    for (int i = 0; i < 10; i++) {
+void dropout(Layer *layer, float alpha) {
+    for (size_t i = 0; i < layer->size; i++) {
+        char disabled = ((float)rand() / RAND_MAX) < alpha;
+        layer->disabled[i] = disabled;
+    }
+}
+
+int is_prediction_correct(NeuralNetwork *network, int label) {
+    size_t output_size = network->layers_node_count[network->layer_count - 1];
+    float *output_layer = network->layers[network->layer_count - 1].data;
+
+    size_t max_index = 0;
+    for (size_t j = 0; j < output_size; j++) {
+        if (output_layer[j] > output_layer[max_index]) {
+            max_index = j;
+        }
+    }
+    return (int)max_index+1 == label;
+}
+
+void get_target_array(float arr[9], LabeledImage img) {
+    for (int i = 0; i < 9; i++) {
         arr[i] = i == img.label ? 1 : 0;
     }
 }

@@ -27,7 +27,9 @@ unsigned int* DetectLines(SDL_Surface *surface){
 
     int w = surface->w;
     int h = surface->h;
-    printf("Image has %i width and %i height\n", w, h);
+    printf("Image Loaded Succesfully with dimension: %dx%d!\n", w, h);
+
+
 
     // Creating the parameter accumulator
     // x: maxTheta    y: max_dist (length of diagonal) 
@@ -105,8 +107,7 @@ SDL_Surface* CheckRotation(SDL_Surface *surface, unsigned int *accumulator){
         unsigned int val = accumulator[i];
         // A peak has its value greater than minPeak and greater or equal than its 4 closest neighbours
         // neighbours:                 left                right                      top                      bottom
-        //if (val >= minPeak && val >= accumulator[i-1] && val >= accumulator[i+1] && val >= accumulator[i-maxTheta] && val >= accumulator[i+maxTheta]){
-        if (val >= minPeak){
+        if (val >= minPeak && val >= accumulator[i-1] && val >= accumulator[i+1] && val >= accumulator[i-maxTheta] && val >= accumulator[i+maxTheta]){
 
             // computing an average angle to rotate
             int theta = i%maxTheta;
@@ -122,6 +123,7 @@ SDL_Surface* CheckRotation(SDL_Surface *surface, unsigned int *accumulator){
             accumulator[i] = 0;
         }
     }
+
 
 
     SDL_Surface *rotated = NULL;
@@ -204,25 +206,24 @@ SDL_Surface* RotateSurface(SDL_Surface* surface, float angle){
 
 
 
-unsigned int* DetectIntersections(SDL_Surface *surface, unsigned int *accumulator){
+unsigned int* DetectIntersections(SDL_Surface *surface, unsigned int *parameterSpace){
+
     int w = surface->w;
     int h = surface->h;
 
-
-    // Creating the linesArray
-    unsigned int *linesArray = calloc(w*h, sizeof(unsigned int));
-    if(linesArray == NULL)
-        errx(1, "Could not create linesArray");
+    // Creating the accumulator
+    unsigned int *accumulator = calloc(w*h, sizeof(unsigned int));
+    if(accumulator == NULL)
+        errx(1, "Could not create accumulator");
 
 
     int rho = 0;
     for(int i = 0; i < accumulatorSize; i++){
 
-        int theta = i%maxTheta;
         if (accumulator[i] != 0){
 
-            //Drawing the corresponding lines to the linesArray
-            double thetaRad = theta * pi / 180;
+            //Drawing the corresponding lines to the accumulator
+            double thetaRad = (i%maxTheta) * pi / 180;
             double a = cos(thetaRad);
             double b = sin(thetaRad);
             int x0 = a*rho;
@@ -232,37 +233,21 @@ unsigned int* DetectIntersections(SDL_Surface *surface, unsigned int *accumulato
             int x2 = x0 - 2000*(-b);
             int y2 = y0 - 2000*a;
 
-            ComputeLine(linesArray, w, h, x1, y1, x2, y2);
+            ComputeLine(surface->pixels, w, h, x1, y1, x2, y2);
         }
 
-        if (theta%maxTheta == 0) 
+        if (i%maxTheta == 0) 
             rho ++;
     }
-    return linesArray;
+
 }
 
 
-void test(SDL_Surface *surface, unsigned int *accumulator){
-    Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
-
-    int max = 0;
-
-    int y = 0;
-    for (long x = 0; x < (surface->w*surface->h)-1826; x++){
-
-        unsigned int val = accumulator[x];
-        if (val > 1){
-            SetPixelData(surface, x%(surface->w), y, color);
-            
-        }
-        if (x % surface->w == 0)
-            y ++;
-    }
-    printf("%i\n", max);
+return accumulator;
 }
 
 
-void ComputeLine(unsigned int *linesArray, long int w, long int h, 
+void ComputeLine(int *pixels, long int w, long int h, 
         long int x1, long int y1, long int x2, long int y2){
 
     int i, dx, dy, maxmove;
@@ -308,7 +293,7 @@ void ComputeLine(unsigned int *linesArray, long int w, long int h,
     y = y1;
 
     for (i = 0; i < maxmove; ++i) {
-        if (x >= 0 && x < w && y >= 0 && y < h) linesArray[y * w + x] += 1;
+        if (x >= 0 && x < w && y >= 0 && y < h) pixels[y * w + x] += 1;
         if (d < 0) {
             d += dinc1;
             x += xinc1;
@@ -325,7 +310,7 @@ void ComputeLine(unsigned int *linesArray, long int w, long int h,
 
 
 
-//----------------------------UTILS--------------------------
+//----------------------------------UTILS--------------------------
 void PrintMat(unsigned int * accumulator){
     for(int i = 0; i < accumulatorSize; i ++){
         if(i % maxTheta == 0)

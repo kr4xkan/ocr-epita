@@ -16,29 +16,55 @@ int main() {
     if (!surface) 
         errx(1, "Could not load image");
 
-    unsigned int *space = DetectLines(surface);
 
-    //DrawLines(surface, space, surface->pixels);
+    //Detect the lines
+    unsigned int *accumulator = DetectLines(surface);
 
-    //PrintMat(space);
+    //DrawLines(surface, accumulator, surface->pixels);
 
-
-    SDL_Surface *rotated = CheckRotation(surface, space);
-    if (rotated != NULL){
-        unsigned int *space2 = DetectLines(rotated);
-        //DrawLines(rotated, space2, rotated->pixels);
+    //PrintMat(accumulator);
 
 
-        IMG_SavePNG(rotated, "rotated.png");
+    //Rotate the image if necessary
+    SDL_Surface *surfaceRotated = CheckRotation(surface, accumulator);
+    if (surfaceRotated != NULL){
+        unsigned int *accumulatorRotated = DetectLines(surfaceRotated);
+        //DrawLines(surfaceRotated, accumulatorRotated, surfaceRotated->pixels);
 
-        free(space2);
-        SDL_FreeSurface(rotated);
+
+        //IMG_SavePNG(surfaceRotated, "surfaceRotated.png");
+
+        CheckRotation(surfaceRotated, accumulatorRotated);
+
+
+        printf("before (rotated)\n");
+        unsigned int *spaceRotated = DetectIntersections(surfaceRotated, accumulatorRotated);
+        printf("after\n");
+
+
+        test(surfaceRotated, spaceRotated);
+        IMG_SavePNG(surfaceRotated, "surfaceRotated.png");
+
+
+
+        free(spaceRotated);
+        free(accumulatorRotated);
+        SDL_FreeSurface(surfaceRotated);
     }
+    else {
+        printf("before (not rotated)\n");
+        unsigned int *space = DetectIntersections(surface, accumulator);
+        printf("after\n");
+        free(space);
+
+    }
+
+
 
 
     //IMG_SavePNG(surface, "test.png");
     
-    free(space);
+    free(accumulator);
     SDL_FreeSurface(surface);
 
 

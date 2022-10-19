@@ -79,6 +79,18 @@ void surface_to_grayscale(SDL_Surface* surface)
     SDL_UnlockSurface(surface);
 }
 
+
+void binarize_surface(SDL_Surface* surface)
+{
+	
+}
+
+Uint32 calcul_mid(Uint32* pixels, int Hmin, int Lmin, int Hmax, int Lmax)
+{
+	
+}
+
+
 int main(int argc, char** argv)
 {
     // Checks the number of arguments.

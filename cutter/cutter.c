@@ -1,3 +1,4 @@
+#include <SDL2/SDL_surface.h>
 #include <stdlib.h>
 #include <err.h>
 #include <SDL2/SDL_image.h>
@@ -24,6 +25,10 @@ double sinArray[maxTheta];
 
 
 unsigned int* DetectLines(SDL_Surface *surface){
+    /**
+     * Detect the lines of the surface given as parameter
+     * return a 2D array (the peaks of the array are the line in the parameter space)
+     */
 
     int w = surface->w;
     int h = surface->h;
@@ -38,7 +43,6 @@ unsigned int* DetectLines(SDL_Surface *surface){
         errx(1, "Could not create accumulator");
 
 
-
     // Compute all cos and sin values beforehand to avoid doing it 69420 times
     for (int i = 0; i < maxTheta; i++){
         cosArray[i] = cos(i*pi/180);
@@ -48,27 +52,17 @@ unsigned int* DetectLines(SDL_Surface *surface){
 
     FillAcumulator(surface, accumulator);
     minPeak = FindMinPeak(accumulator, accumulatorSize); 
+    FilterLines(accumulator, accumulatorSize);
 
     return accumulator;
 }
 
 
-
-
-
-
-unsigned int FindMinPeak(unsigned int * accumulator, int accumulatorSize){
-    unsigned int maxPeak = 0;
-    for (int i = 0; i < accumulatorSize; i++){
-        if (accumulator[i] > maxPeak)
-            maxPeak = accumulator[i];
-    }
-
-    return maxPeak * ratio;
-}
-
-
 void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator){
+    /**
+     * Check for every point in the image and draw it's sinus curve in the accumulator
+     * Return the filled accumulator
+     */
 
     Uint8 r, g, b;
     //Cycle trhough all the pixels to find the white ones
@@ -91,42 +85,106 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator){
 }
 
 
+unsigned int FindMinPeak(unsigned int * accumulator, int accumulatorSize){
+    /**
+     * Compute the minimal value for a point to be consider a peak in the accumulator
+     */
+    unsigned int maxPeak = 0;
+    for (int i = 0; i < accumulatorSize; i++){
+        if (accumulator[i] > maxPeak)
+            maxPeak = accumulator[i];
+    }
+
+    return maxPeak * ratio;
+}
+
+
+void FilterLines(unsigned int * accumulator, int accumulatorSize){
+    /**
+     * Remove lines that are too similar to another one
+     */
+
+    unsigned int rhoValues[100];
+    unsigned int thetaValues[100];
+    int maxGap = sqrt(maxDist);
+
+    size_t len = 0;
+    int rho = 0;
+    for (int i = 0; i < accumulatorSize; i++){
+        unsigned int val = accumulator[i];
+
+        if (val >= minPeak && val >= accumulator[i-1] && val >= accumulator[i+1] && val >= accumulator[i-maxTheta] && val >= accumulator[i+maxTheta]){
+            int theta = i%maxTheta;
+            if (!AlreadyExist(theta, rho, rhoValues, thetaValues, len, maxGap)){
+                rhoValues[len] = rho;
+                thetaValues[len] = theta;
+                len++;
+            } 
+            else{
+                accumulator[i] = 0;
+            }
+        }
+        else{
+            accumulator[i] = 0;
+        }
+
+        if (i % maxTheta == 0)
+            rho++;
+
+    }
+}
+
+
+
+int AlreadyExist(int theta, int rho, unsigned int rhoValues[], unsigned int thetaValues[], size_t len, int maxGap){
+    /**
+     * Check if a line is similar to an already existing one
+     * Return 1 if the line already exist, 0 else 
+     */
+
+    for (size_t i = 0; i < len; i++){
+        int dTheta = abs((int) thetaValues[i] - theta);
+        int dRho = abs((int) rhoValues[i] - rho);
+        if ((dTheta <= 4 || dTheta >= 356 ) && dRho <= maxGap){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+
+
+
 
 SDL_Surface* CheckRotation(SDL_Surface *surface, unsigned int *accumulator){
+    /** 
+     * Compute an average angle to rotate the image 
+     * Return NULL if the surface does not need rotation
+     *             the rotated surface else
+     */
 
-    // Find the angle to rotate the image (if needed) 
-    int div = 0;
+    int count = 0;
     int sum = 0;
-    int rotateNeeded = 1;
 
     for(int i = 0; i < accumulatorSize; i++){
 
-
         unsigned int val = accumulator[i];
-        // A peak has its value greater than minPeak and greater or equal than its 4 closest neighbours
-        // neighbours:                 left                right                      top                      bottom
-        //if (val >= minPeak && val >= accumulator[i-1] && val >= accumulator[i+1] && val >= accumulator[i-maxTheta] && val >= accumulator[i+maxTheta]){
-        if (val >= minPeak){
+        if (val != 0){
 
             // computing an average angle to rotate
             int theta = i%maxTheta;
-            if (theta == 90)
-                rotateNeeded = 0;
-            else if (theta < 90){
+            if (theta < 90){
                 sum += theta;
-                div++;
+                count++;
             }
-        }
-        //If it's not a peak then change its value to zero
-        else{
-            accumulator[i] = 0;
         }
     }
 
 
     SDL_Surface *rotated = NULL;
-    if (rotateNeeded){
-        int angle = sum / div;
+    int angle = sum / count;
+    if (abs(90-angle) > 1){
 
         if (angle >= 45){
             printf("Rotate %i° Clockwise\n", 90-angle);
@@ -136,7 +194,6 @@ SDL_Surface* CheckRotation(SDL_Surface *surface, unsigned int *accumulator){
             printf("Rotate %i° CounterClockwise\n", angle);
             rotated = RotateSurface(surface, angle);
         }
-
     }
 
     return rotated;
@@ -146,8 +203,11 @@ SDL_Surface* CheckRotation(SDL_Surface *surface, unsigned int *accumulator){
 
 
 SDL_Surface* RotateSurface(SDL_Surface* surface, float angle){
+    /**
+     * Rotate a surface and return the new one
+     */
+
     SDL_Surface* dest;
-    Uint32 color;
     int mx, my, mxdest, mydest;
     int bx, by;
 
@@ -190,7 +250,7 @@ SDL_Surface* RotateSurface(SDL_Surface* surface, float angle){
 
             //Check if the found coordinates are inside the new surface
             if (bx >=0 && bx < surface->w && by >= 0 && by < surface->h){
-                color = GetPixelData(surface, bx, by);
+                Uint32 color = GetPixelData(surface, bx, by);
                 SetPixelData(dest, i, j, color);
             }
         }
@@ -203,16 +263,19 @@ SDL_Surface* RotateSurface(SDL_Surface* surface, float angle){
 
 
 
-
 unsigned int* DetectIntersections(SDL_Surface *surface, unsigned int *accumulator){
+    /**
+     * Detect the intersections of every lines in the accumulator by drawing them in the normal space
+     * Return the normal space 
+     */
+
     int w = surface->w;
     int h = surface->h;
 
-
-    // Creating the linesArray
-    unsigned int *linesArray = calloc(w*h, sizeof(unsigned int));
-    if(linesArray == NULL)
-        errx(1, "Could not create linesArray");
+    // Creating the normalSpace
+    unsigned int *normalSpace = calloc(w*h, sizeof(unsigned int));
+    if(normalSpace == NULL)
+        errx(1, "Could not create normalSpace");
 
 
     int rho = 0;
@@ -221,7 +284,8 @@ unsigned int* DetectIntersections(SDL_Surface *surface, unsigned int *accumulato
         int theta = i%maxTheta;
         if (accumulator[i] != 0){
 
-            //Drawing the corresponding lines to the linesArray
+            //convert the point in the accumulator space in a line in the normal space
+            // to do so: compute 2 point of the line and draw it
             double thetaRad = theta * pi / 180;
             double a = cos(thetaRad);
             double b = sin(thetaRad);
@@ -232,38 +296,21 @@ unsigned int* DetectIntersections(SDL_Surface *surface, unsigned int *accumulato
             int x2 = x0 - 2000*(-b);
             int y2 = y0 - 2000*a;
 
-            ComputeLine(linesArray, w, h, x1, y1, x2, y2);
+            ComputeLine(normalSpace, w, h, x1, y1, x2, y2);
         }
 
         if (theta%maxTheta == 0) 
             rho ++;
     }
-    return linesArray;
+    return normalSpace;
 }
 
 
-void test(SDL_Surface *surface, unsigned int *accumulator){
-    Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
-
-    int max = 0;
-
-    int y = 0;
-    for (long x = 0; x < (surface->w*surface->h)-1826; x++){
-
-        unsigned int val = accumulator[x];
-        if (val > 1){
-            SetPixelData(surface, x%(surface->w), y, color);
-            
-        }
-        if (x % surface->w == 0)
-            y ++;
-    }
-    printf("%i\n", max);
-}
-
-
-void ComputeLine(unsigned int *linesArray, long int w, long int h, 
+void ComputeLine(unsigned int *normalSpace, long int w, long int h, 
         long int x1, long int y1, long int x2, long int y2){
+    /**
+     * draw a line in the normal space
+     */
 
     int i, dx, dy, maxmove;
     int d, dinc1, dinc2;
@@ -308,7 +355,7 @@ void ComputeLine(unsigned int *linesArray, long int w, long int h,
     y = y1;
 
     for (i = 0; i < maxmove; ++i) {
-        if (x >= 0 && x < w && y >= 0 && y < h) linesArray[y * w + x] += 1;
+        if (x >= 0 && x < w && y >= 0 && y < h) normalSpace[y * w + x] += 1;
         if (d < 0) {
             d += dinc1;
             x += xinc1;
@@ -325,19 +372,41 @@ void ComputeLine(unsigned int *linesArray, long int w, long int h,
 
 
 
+void CropSquares(SDL_Surface *surface, unsigned int *accumulator){
+    int w = surface->w;
+    int h = surface->h;
+
+    int x = 0, y = 0;
+    for (long i = 0; i < w*h; i++){
+        unsigned int val = accumulator[i];
+
+        if (val >= 2){
+            
+        }
+
+        x++; 
+        if (x == h){
+            y ++;
+            x = 0;
+        }
+    }
+}
+
+
 //----------------------------UTILS--------------------------
 void PrintMat(unsigned int * accumulator){
     for(int i = 0; i < accumulatorSize; i ++){
         if(i % maxTheta == 0)
             printf("\n");
-        if(accumulator[i] >= minPeak){ 
-            unsigned int val = accumulator[i];
-            if (val >= accumulator[i-1] && val >= accumulator[i+1] && val >= accumulator[i-maxTheta] && val >= accumulator[i+maxTheta]){
-                printf("\033[1;31m");
-                printf("%3u ", accumulator[i]);
-            }
+
+        unsigned int val = accumulator[i];
+        if(val >= minPeak){ 
+            //       if (val >= accumulator[i-1] && val >= accumulator[i+1] && val >= accumulator[i-maxTheta] && val >= accumulator[i+maxTheta]){
+            printf("\033[1;31m");
+            printf("%3u ", accumulator[i]);
+            //     }
         }
-        else if(accumulator[i] >= 1){
+        else if(val >= 1){
             printf("\033[0m");
             printf("%3u ", accumulator[i]);
         }
@@ -363,10 +432,8 @@ void DrawLines(SDL_Surface *surface, unsigned int *accumulator, int *pixels){
         unsigned int val = accumulator[i];
         // A peak has its value greater than minPeak and gretaer or equal than its 4 closest neighbours
         // first compare to the peak then left / right / top / bottom
-        if (val >= minPeak && 
-                val >= accumulator[i-1] && val >= accumulator[i+1] && 
-                val >= accumulator[i-maxTheta] && val >= accumulator[i+maxTheta]){
-
+        //if (val >= minPeak && val >= accumulator[i-1] && val >= accumulator[i+1] && val >= accumulator[i-maxTheta] && val >= accumulator[i+maxTheta])
+        if (val >= minPeak){
 
             //Drawing the corresponding lines
             double thetaRad = theta * pi / 180;
@@ -452,3 +519,35 @@ void DrawLine(int *pixels,
         }
     }
 }
+
+
+
+void DrawIntersections(SDL_Surface *surface, unsigned int *accumulator){
+    int w = surface->w;
+    int h = surface->h;
+
+
+    Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
+    int x = 0, y = 0;
+    for (long i = 0; i < w*h; i++){
+        unsigned int val = accumulator[i];
+
+        if (val >= 2){
+            for (int i = -3; i <= 3; i++){
+                for (int j = -3; j <= 3; j++){
+                    SetPixelData(surface, x+i, y+j, color);
+                }
+
+            }
+        }
+
+        x++; 
+        if (x == h){
+            y ++;
+            x = 0;
+        }
+    }
+
+}
+
+

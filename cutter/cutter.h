@@ -6,6 +6,8 @@
 unsigned int* DetectLines(SDL_Surface *surface);
 void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator);
 unsigned int FindMinPeak(unsigned int * accumulator, int accumulatorSize);
+void FilterLines(unsigned int * accumulator, int accumulatorSize);
+int AlreadyExist(int theta, int rho, unsigned int rhoValues[], unsigned int thetaValues[], size_t len, int maxGap);
 
 
 // Take a surface and its corresponding accumulator
@@ -22,7 +24,7 @@ void ComputeLine(unsigned int *linesArray, long int w, long int h,
 
 
 
-void test(SDL_Surface *surface, unsigned int *accumulator);
+void DrawIntersections(SDL_Surface *surface, unsigned int *accumulator);
 
 // -----------------------------UTILS-------------------------------------
 void PrintMat(unsigned int * accumulator);

@@ -79,15 +79,52 @@ void surface_to_grayscale(SDL_Surface* surface)
     SDL_UnlockSurface(surface);
 }
 
+void binarize_square(Uint32* pixels, int Hmin, int Wmin, int Hmax, int Wmax, int width, int height)
+{
+    Uint32 mid = 0;
+    Uint32 nb = 0;
+    for (int i = Hmin; i < Hmax; i++)
+    {
+        for (int k = Wmin; k < Wmax; k++)
+        {
+            mid += pixels[i*height + k*width];
+            nb+=1;
+        }
+    }
+    Uint32 threshold = mid / nb;
+    for (int i = Hmin; i < Hmax; i++)
+    {
+        for (int k = Wmin; k < Wmax; k++)
+        {
+            if (pixels[i*height + k*width] > threshold)
+                pixels[i*height + k*width] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 0, 0, 0);
+            else
+                pixels[i*height + k*width] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 255, 255, 255);
+        }
+    }
+}
 
 void binarize_surface(SDL_Surface* surface)
 {
-	
-}
-
-Uint32 calcul_mid(Uint32* pixels, int Hmin, int Lmin, int Hmax, int Lmax)
-{
-	
+        Uint32* pixels = surface->pixels;
+        int width = surface->w;
+        int height = surface->h;
+        int h_list[5] = {0,0,0,0,0};
+        int w_list[5] = {0,0,0,0,0};
+        int cut_h = height / 5;
+        int cut_w = width / 5;
+        for (int i = 1; i < 5; i++)
+        {
+                h_list[i] += cut_h * i;
+                w_list[i] += cut_w * i;
+        }
+	SDL_LockSurface(surface);
+        for (int k = 0; k < 5; k++)
+        {
+                binarize_square(pixels, h_list[k], w_list[k], h_list[k+1], w_list[k+1], width, height);
+        }
+	SDL_UnlockSurface(surface);
+	IMG_SavePNG(surface, "out.png");
 }
 
 
@@ -118,14 +155,15 @@ int main(int argc, char** argv)
     // - Resize the window according to the size of the image.
     SDL_SetWindowSize(window, surface->w, surface->h);
 
-    // - Create a texture from the colored surface.
-    SDL_Surface* coloured = SDL_CreateTextureFromSurface(renderer, surface);
-
     // - Convert the surface into grayscale.
     surface_to_grayscale(surface);
 
     // - Create a new texture from the grayscale surface.
     SDL_Surface* grey = SDL_CreateTextureFromSurface(renderer, surface);
+
+    // - Binarize
+    binarize_surface(surface);
+    IMG_SavePNG(surface, "out.png");
 
     // - Free the surface.
     SDL_FreeSurface(surface);
@@ -134,7 +172,6 @@ int main(int argc, char** argv)
     event_loop(renderer, grey);
 
     // - Destroy the objects.
-    SDL_DestroyTexture(coloured);
     SDL_DestroyTexture(grey);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

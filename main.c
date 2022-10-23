@@ -12,17 +12,16 @@ int main() {
     clock_t t = clock();
     
     // WARNING: NEVER USE TWO ACCUMULATOR AT THE SAME TIME
-    // SOME VALUES ARE COMPUTED WITH DetectLines AND WILL CHANGE IF USE WITH TWO ACCUMULATOR
+    // SOME VALUES ARE COMPUTED WITH DetectLines AND WILL CHANGE IF USE WITH ANOTHER ACCUMULATOR
 
     //Load the surface
-    SDL_Surface *surface = LoadImage("DataSample/cutter/og1rotated2.png");
+    SDL_Surface *surface = LoadImage("DataSample/cutter/og1rotated.png");
     if (!surface) 
         errx(1, "Could not load image");
 
 
     unsigned int *accumulator = DetectLines(surface);
 
-    //DrawLines(surface, accumulator, surface->pixels);
     //PrintMat(accumulator);
 
 
@@ -36,8 +35,9 @@ int main() {
 
         DrawLines(surfaceRotated, accumulatorRotated, surfaceRotated->pixels);
         DrawIntersections(surfaceRotated, spaceRotated);
-        IMG_SavePNG(surfaceRotated, "surfaceRotated.png");
+        IMG_SavePNG(surfaceRotated, "surface.png");
 
+        //CropSquares(surfaceRotated, spaceRotated);
 
         free(spaceRotated);
         free(accumulatorRotated);
@@ -45,14 +45,16 @@ int main() {
     }
     else {
         unsigned int *space = DetectIntersections(surface, accumulator);
+
+        DrawLines(surface, accumulator, surface->pixels);
+        DrawIntersections(surface, space);
+        IMG_SavePNG(surface, "surface.png");
+
         free(space);
     }
 
 
 
-
-    IMG_SavePNG(surface, "test.png");
-    
     free(accumulator);
     SDL_FreeSurface(surface);
 

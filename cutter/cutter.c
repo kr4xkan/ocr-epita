@@ -64,6 +64,8 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator){
      * Return the filled accumulator
      */
 
+    int tmp = 0;
+
     Uint8 r, g, b;
     //Cycle trhough all the pixels to find the white ones
     for (int y = 0; y < surface->h; y++){
@@ -71,12 +73,12 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator){
 
             GetPixelColor(surface, x, y, &r, &g, &b);
             if ((r + g + b) / 3 >= minAverage){
-
+                tmp++;
                 //compute all the values of rho and theta for the given point
                 for (int theta = 0; theta < maxTheta; theta++){
                     int rho = x*cosArray[theta] + y*sinArray[theta];
                     if (rho > 0 && rho < maxDist){
-                        accumulator[rho*maxTheta + theta] += 1;
+                        accumulator[rho*maxTheta + theta]++;
                     }
                 }
             }
@@ -104,8 +106,8 @@ void FilterLines(unsigned int * accumulator, int accumulatorSize){
      * Remove lines that are too similar to another one
      */
 
-    unsigned int rhoValues[100];
-    unsigned int thetaValues[100];
+    unsigned int rhoValues[300];
+    unsigned int thetaValues[300];
     int maxGap = sqrt(maxDist);
 
     size_t len = 0;
@@ -113,7 +115,7 @@ void FilterLines(unsigned int * accumulator, int accumulatorSize){
     for (int i = 0; i < accumulatorSize; i++){
         unsigned int val = accumulator[i];
 
-        if (val >= minPeak && val >= accumulator[i-1] && val >= accumulator[i+1] && val >= accumulator[i-maxTheta] && val >= accumulator[i+maxTheta]){
+        if (CheckPeak(accumulator, accumulatorSize, i, val)){
             int theta = i%maxTheta;
             if (!AlreadyExist(theta, rho, rhoValues, thetaValues, len, maxGap)){
                 rhoValues[len] = rho;
@@ -130,10 +132,23 @@ void FilterLines(unsigned int * accumulator, int accumulatorSize){
 
         if (i % maxTheta == 0)
             rho++;
-
     }
+    printf("%li lines detected\n", len);
 }
 
+
+int CheckPeak(unsigned int *accumulator, int accumulatorSize, int i, unsigned int val){
+    if (val < minPeak) return 0;
+    // Left neighbour
+    if (i % maxTheta != 0 && accumulator[i-1] > val) return 0;
+    // Right neighbour
+    if (i % maxTheta != maxTheta-1 && accumulator[i+1] > val) return 0;
+    // Top neighbour
+    if (i >= maxTheta && accumulator[i-maxTheta] > val) return 0;
+    // Bottom neighbour
+    if (i < accumulatorSize-maxTheta && accumulator[i+maxTheta] > val) return 0;
+    return 1;
+}
 
 
 int AlreadyExist(int theta, int rho, unsigned int rhoValues[], unsigned int thetaValues[], size_t len, int maxGap){
@@ -145,7 +160,7 @@ int AlreadyExist(int theta, int rho, unsigned int rhoValues[], unsigned int thet
     for (size_t i = 0; i < len; i++){
         int dTheta = abs((int) thetaValues[i] - theta);
         int dRho = abs((int) rhoValues[i] - rho);
-        if ((dTheta <= 4 || dTheta >= 356 ) && dRho <= maxGap){
+        if ((dTheta <= 10 || dTheta >= 350 ) && dRho <= maxGap){
             return 1;
         }
     }
@@ -181,11 +196,11 @@ SDL_Surface* CheckRotation(SDL_Surface *surface, unsigned int *accumulator){
         }
     }
 
+    if (count == 0) return NULL;
 
     SDL_Surface *rotated = NULL;
     int angle = sum / count;
-    if (abs(90-angle) > 1){
-
+    if (abs(angle) > 1){
         if (angle >= 45){
             printf("Rotate %i° Clockwise\n", 90-angle);
             rotated = RotateSurface(surface, -90+angle);
@@ -279,11 +294,10 @@ unsigned int* DetectIntersections(SDL_Surface *surface, unsigned int *accumulato
 
 
     int rho = 0;
+    int theta = 0;
     for(int i = 0; i < accumulatorSize; i++){
 
-        int theta = i%maxTheta;
         if (accumulator[i] != 0){
-
             //convert the point in the accumulator space in a line in the normal space
             // to do so: compute 2 point of the line and draw it
             double thetaRad = theta * pi / 180;
@@ -299,8 +313,11 @@ unsigned int* DetectIntersections(SDL_Surface *surface, unsigned int *accumulato
             ComputeLine(normalSpace, w, h, x1, y1, x2, y2);
         }
 
-        if (theta%maxTheta == 0) 
+        theta++;
+        if (theta == maxTheta){
+            theta = 0;
             rho ++;
+        }
     }
     return normalSpace;
 }
@@ -372,24 +389,53 @@ void ComputeLine(unsigned int *normalSpace, long int w, long int h,
 
 
 
-void CropSquares(SDL_Surface *surface, unsigned int *accumulator){
-    int w = surface->w;
-    int h = surface->h;
+void CropSquares(SDL_Surface *surface, unsigned int *normalSpace){
+    int w = surface->w, h = surface->h;
 
-    int x = 0, y = 0;
-    for (long i = 0; i < w*h; i++){
-        unsigned int val = accumulator[i];
+    unsigned int xCoords[20][20] = {};
+    unsigned int yCoords[20][20] = {};
+    size_t arrayX = 0, arrayY = 0;
 
+    int ouaip = 0;
+
+    int y = 0;
+    for (int i = 0; i < w*h; i++){
+        unsigned int val = normalSpace[i];
         if (val >= 2){
-            
+
+            printf("%i\n", i);
+            xCoords[arrayY][arrayX] = i%h;
+            printf("%i\n", i);
+            yCoords[arrayY][arrayX] = y;
+            arrayX++;
         }
 
-        x++; 
-        if (x == h){
-            y ++;
-            x = 0;
+
+
+        if(i%w == 0){
+            y++;
+            ouaip++;
         }
+        if (ouaip >= 10){
+            arrayY++;
+            arrayX = 0;
+        }
+
     }
+
+    
+    int x = 0;
+    y = 0;
+    while(xCoords[y][0] != 0){
+        while(xCoords[y][x] != 0){
+
+            printf("%i ", xCoords[y][x]);
+            x++;
+        }
+        printf("\n");
+        y++;
+    }
+
 }
 
 
@@ -533,21 +579,13 @@ void DrawIntersections(SDL_Surface *surface, unsigned int *accumulator){
         unsigned int val = accumulator[i];
 
         if (val >= 2){
-            for (int i = -3; i <= 3; i++){
-                for (int j = -3; j <= 3; j++){
-                    SetPixelData(surface, x+i, y+j, color);
-                }
-
-            }
+            SetPixelData(surface, x, y, color);
         }
 
         x++; 
-        if (x == h){
+        if (x == w){
             y ++;
             x = 0;
         }
     }
-
 }
-
-

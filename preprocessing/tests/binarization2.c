@@ -8,6 +8,28 @@ SDL_Surface* load_image(const char* path)
     return res;
 }
 
+Uint32 pixel_to_grayscale(Uint32 pixel_color, SDL_PixelFormat* format)
+{
+    Uint8 r, g, b;
+    SDL_GetRGB(pixel_color, format, &r, &g, &b);
+    Uint8 average = 0.3*r + 0.59*g + 0.11*b;
+    Uint32 color = SDL_MapRGB(format, average, average, average);
+    return color;
+}
+
+void surface_to_grayscale(SDL_Surface* surface)
+{
+    Uint32* pixels = surface->pixels;
+    int len = surface->w * surface->h;
+    SDL_PixelFormat* format = surface->format;
+    SDL_LockSurface(surface);
+    for (int i = 0; i < len; i++)
+    {
+        pixels[i] = pixel_to_grayscale(pixels[i], format);
+    }
+    SDL_UnlockSurface(surface);
+}
+
 
 int otsu(SDL_Surface* img, int w, int h)
 {
@@ -54,7 +76,7 @@ int otsu(SDL_Surface* img, int w, int h)
             threshold = i;
         }
     }
-    return threshold-11;
+    return threshold+11;
 }
 
 
@@ -62,28 +84,14 @@ void dumb_bin(SDL_Surface *surface){
     Uint32 *pixels = surface->pixels;
     int w = surface->w;
     int h = surface->h;
-    int nb = w*h;
-    Uint32 mid = 0;
-    /*for (size_t i = 0; i < h; i++)
-    {
-        for(size_t k = 0; k < w; k++)
-        {
-            mid += pixels[w*i + k];
-        }
-    }
-    Uint32 threshold = mid / nb;*/
     int threshold = otsu(surface, w, h);
-    //printf("%u\n", mid);
-    //printf("%zu\n",nb);
-    printf("%u\n",threshold);
     for (size_t i = 0; i < h; i++)
     {
         for(size_t k = 0; k < w; k++)
         {
             Uint8 r,g,b;
             SDL_GetRGB(pixels[i*w+k],surface->format, &r,&g,&b);
-            //printf("%u\n", pixels[i*w+k]);
-            if (r > threshold) {
+            if (r >= threshold) {
                 pixels[w * i + k] = SDL_MapRGB(surface->format, 255, 255, 255);
             }
             else
@@ -95,9 +103,15 @@ void dumb_bin(SDL_Surface *surface){
 int main(int argc, char** argv){
     SDL_Surface* surface = load_image(argv[1]);
 
-    dumb_bin(surface);
+    surface_to_grayscale(surface);
 
-    IMG_SavePNG(surface, "dumb.png");
+    IMG_SavePNG(surface, "gray.png");
+
+    SDL_Surface *surf2 = load_image("gray.png");
+
+    dumb_bin(surf2);
+
+    IMG_SavePNG(surf2, "dumb.png");
 
     SDL_FreeSurface(surface);
 

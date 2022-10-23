@@ -1,62 +1,13 @@
-#include <err.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
-// Updates the display.
-//
-// renderer: Renderer to draw on.
-// texture: Texture that contains the image.
-void draw(SDL_Renderer* renderer, SDL_Texture* texture)
-{
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);
-}
-
-// Event loop that calls the relevant event handler. 
-//
-// renderer: Renderer to draw on.
-// colored: Texture that contains the colored image.
-// grayscale: Texture that contains the grayscale image.
-void event_loop(SDL_Renderer* renderer, SDL_Texture* grayscale) 
-{
-    SDL_Event event;
-    SDL_Texture* t = grayscale;
-
-    while (1)
-    {
-        SDL_WaitEvent(&event);
-
-        switch (event.type)
-        {
-            case SDL_QUIT:
-                return;
-        
-            case SDL_WINDOWEVENT: 
-                if (event.window.event == SDL_WINDOWEVENT_RESIZED)
-                {
-                    draw(renderer, t);
-                }
-                break;
-        }
-    }
-}
- 
-// Loads an image in a surface.
-// The format of the surface is SDL_PIXELFORMAT_RGB888.
-//
-// path: Path of the image.
 SDL_Surface* load_image(const char* path)
 {
     SDL_Surface* surf = IMG_Load(path);
     SDL_Surface* res = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB888, 0);
-    SDL_FreeSurface(surf);
     return res;
 }
 
-// Converts a colored pixel into grayscale.
-//
-// pixel_color: Color of the pixel to convert in the RGB format.
-// format: Format of the pixel used by the surface.
 Uint32 pixel_to_grayscale(Uint32 pixel_color, SDL_PixelFormat* format)
 {
     Uint8 r, g, b;
@@ -79,103 +30,88 @@ void surface_to_grayscale(SDL_Surface* surface)
     SDL_UnlockSurface(surface);
 }
 
-void binarize_square(Uint32* pixels, int Hmin, int Wmin, int Hmax, int Wmax, int width, int height)
+
+int otsu(SDL_Surface* img, int w, int h)
 {
-    Uint32 mid = 0;
-    Uint32 nb = 0;
-    for (int i = Hmin; i < Hmax; i++)
+    Uint32 *pixels = img->pixels;
+    float histo[256];
+    int nbpix = w * h;
+    int threshold = 0;
+    for (int x = 0; x < w; x++)
     {
-        for (int k = Wmin; k < Wmax; k++)
+        for (int y = 0; y < h; y++)
         {
-            mid += pixels[i*height + k*width];
-            nb+=1;
+            Uint8 r, g, b;
+            Uint32 pixel = pixels[y*w + x];
+            SDL_GetRGB(pixel, img->format, &r, &g, &b);
+            histo[g]+=1;
         }
     }
-    Uint32 threshold = mid / nb;
-    for (int i = Hmin; i < Hmax; i++)
+
+    float w1 = 0; //sum of all expectations
+    for (int i = 0; i <= 255; i++)
     {
-        for (int k = Wmin; k < Wmax; k++)
+        w1 += i * ((int)histo[i]);
+    }
+
+    float w2 = 0; //expectation sum 2
+    int n1 = 0; //histo value for i
+    int n2; //histo value for all others
+    float m1; //mean value 1
+    float m2; //mean value 2
+    float var; //each value var to compare with maxvar
+    float maxvar = 0; //max variance : result
+
+    for (int i = 0 ; i <= 255 ; i++) //calcul of the best threshold : the one who as the greatest variance.
+    {
+        n1 += histo[i];
+        n2 = nbpix - n1;
+        w2 += (float) (i * ((int)histo[i]));
+        m1 = w2 / n1; //mean 1
+        m2 = (w1 - w2) / n2; //mean 2
+        var = (float) n1 * (float) n2 * (m1 - m2) * (m1 - m2);
+        if (var > maxvar)
         {
-            if (pixels[i*height + k*width] > threshold)
-                pixels[i*height + k*width] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 0, 0, 0);
+            maxvar = var;
+            threshold = i;
+        }
+    }
+    return threshold+11;
+}
+
+
+void dumb_bin(SDL_Surface *surface){
+    Uint32 *pixels = surface->pixels;
+    int w = surface->w;
+    int h = surface->h;
+    int threshold = otsu(surface, w, h);
+    for (size_t i = 0; i < h; i++)
+    {
+        for(size_t k = 0; k < w; k++)
+        {
+            Uint8 r,g,b;
+            SDL_GetRGB(pixels[i*w+k],surface->format, &r,&g,&b);
+            if (r >= threshold) {
+                pixels[w*i+k] = SDL_MapRGB(surface->format, 255, 255, 255);
+            }
             else
-                pixels[i*height + k*width] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 255, 255, 255);
+                pixels[w*i+k] = SDL_MapRGB(surface->format, 0, 0, 0);
         }
     }
 }
 
-void binarize_surface(SDL_Surface* surface)
-{
-        Uint32* pixels = surface->pixels;
-        int width = surface->w;
-        int height = surface->h;
-        int h_list[5] = {0,0,0,0,0};
-        int w_list[5] = {0,0,0,0,0};
-        int cut_h = height / 5;
-        int cut_w = width / 5;
-        for (int i = 1; i < 5; i++)
-        {
-                h_list[i] += cut_h * i;
-                w_list[i] += cut_w * i;
-        }
-	SDL_LockSurface(surface);
-        for (int k = 0; k < 5; k++)
-        {
-                binarize_square(pixels, h_list[k], w_list[k], h_list[k+1], w_list[k+1], width, height);
-        }
-	SDL_UnlockSurface(surface);
-	IMG_SavePNG(surface, "out.png");
-}
+void binarization(char *path){
+    SDL_Surface* surface = load_image(path);
 
-
-int main(int argc, char** argv)
-{
-    // Checks the number of arguments.
-    if (argc != 2)
-        errx(EXIT_FAILURE, "Usage: image-file");
-
-    // - Initialize the SDL.
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
-        errx(EXIT_FAILURE, "%s", SDL_GetError());
-    
-    // - Create a window.
-    SDL_Window* window = SDL_CreateWindow("Image", 0, 0, 640, 400,
-		    SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    if (window == NULL)
-        errx(EXIT_FAILURE, "%s", SDL_GetError());
-    
-    // - Create a renderer.
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (renderer == NULL)
-                errx(EXIT_FAILURE, "%s", SDL_GetError());
-
-    // - Create a surface from the colored image.
-    SDL_Surface* surface = load_image(argv[1]);
-
-    // - Resize the window according to the size of the image.
-    SDL_SetWindowSize(window, surface->w, surface->h);
-
-    // - Convert the surface into grayscale.
     surface_to_grayscale(surface);
 
-    // - Create a new texture from the grayscale surface.
-    SDL_Surface* grey = SDL_CreateTextureFromSurface(renderer, surface);
+    IMG_SavePNG(surface, "gray.png");
 
-    // - Binarize
-    binarize_surface(surface);
-    IMG_SavePNG(surface, "out.png");
+    SDL_Surface *surf2 = load_image("gray.png");
 
-    // - Free the surface.
+    dumb_bin(surf2);
+
+    IMG_SavePNG(surf2, "dumb.png");
+
     SDL_FreeSurface(surface);
-
-    // - Dispatch the events.
-    event_loop(renderer, grey);
-
-    // - Destroy the objects.
-    SDL_DestroyTexture(grey);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-
-    return EXIT_SUCCESS;
 }

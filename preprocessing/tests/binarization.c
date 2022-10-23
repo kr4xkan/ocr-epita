@@ -102,7 +102,7 @@ int otsu(SDL_Surface* img, int Hmin, int Wmin, int Hmax, int Wmax, int w, int h)
             threshold = i;
         }
     }
-    return threshold-11;
+    return threshold+11;
 }
 
 void binarize_square(SDL_PixelFormat *format, Uint32* pixels, int threshold, int Hmin, int Wmin, int Hmax, int Wmax,
@@ -115,7 +115,7 @@ void binarize_square(SDL_PixelFormat *format, Uint32* pixels, int threshold, int
             Uint8 r,g,b;
             SDL_GetRGB(pixels[x*w+y],format, &r,&g,&b);
             //printf("%u\n", pixels[i*w+k]);
-            if (r > threshold) {
+            if (r >= threshold) {
                 pixels[w * x + y] = SDL_MapRGB(format, 255, 255, 255);
             }
             else
@@ -152,6 +152,8 @@ int main(int argc, char** argv){
     SDL_Surface* surface = load_image(argv[1]);
 
     surface_to_grayscale(surface);
+
+    IMG_SavePNG(surface, "gray.png");
 
     binarize_surface(surface);
 

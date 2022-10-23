@@ -6,20 +6,18 @@ SDL_Surface* load_image(const char* path)
 {
     SDL_Surface* surf = IMG_Load(path);
     SDL_Surface* res = SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB888, 0);
-    SDL_FreeSurface(surf);
     return res;
 }
 
 void binarize_square(Uint32* pixels, int Hmin, int Wmin, int Hmax, int Wmax, int width, int height)
 {
     Uint32 mid = 0;
-    Uint32 nb = 0;
+    int nb = (Wmax-Wmin) * (Hmax-Hmin);
     for (int i = Hmin; i < Hmax; i++)
     {
         for (int k = Wmin; k < Wmax; k++)
         {
-            mid += pixels[i*height + k*width];
-            nb+=1;
+            mid += pixels[i*width + k];
         }
     }
     Uint32 threshold = mid / nb;
@@ -27,10 +25,10 @@ void binarize_square(Uint32* pixels, int Hmin, int Wmin, int Hmax, int Wmax, int
     {
         for (int k = Wmin; k < Wmax; k++)
         {
-            if (pixels[i*height + k*width] > threshold)
-                pixels[i*height + k*width] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 0, 0, 0);
+            if (pixels[i*width + k] > threshold)
+                pixels[i*width + k] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 0, 0, 0);
             else
-                pixels[i*height + k*width] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 255, 255, 255);
+                pixels[i*width + k] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 255, 255, 255);
         }
     }
 }
@@ -38,9 +36,7 @@ void binarize_square(Uint32* pixels, int Hmin, int Wmin, int Hmax, int Wmax, int
 void binarize_surface(SDL_Surface* surface) {
     int width = surface->w;
     int height = surface->h;
-    //Uint32 *pixels = surface->pixels;
-    Uint32 *pixels =malloc(width * height * sizeof(Uint32));
-    *pixels = surface->pixels;
+    Uint32 *pixels = surface->pixels;
     int h_list[5] = {0, 0, 0, 0, 0};
     int w_list[5] = {0, 0, 0, 0, 0};
     int cut_h = height / 5;

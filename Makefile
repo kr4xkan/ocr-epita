@@ -1,5 +1,5 @@
 CPPFLAGS = -MMD
-CC = gcc -fsanitize=address
+CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -g \
 		 $(shell pkg-config --cflags sdl2 SDL2_image)
 LDFLAGS =
@@ -26,4 +26,5 @@ clean:
 	${RM} ${DEP}
 	${RM} main
 
+#don't raise error if DEP files not found
 -include ${DEP}

@@ -4,7 +4,7 @@ stdenv.mkDerivation {
   name = "ocr";
 
   buildInputs = [
-    gdb
+    clang
     gcc
     pkg-config
 

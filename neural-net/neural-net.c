@@ -1,284 +1,367 @@
-#include "err.h"
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_surface.h>
+#include <err.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
+#include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_image.h>
+
 #include "../utils.h"
 #include "matrix.h"
 #include "neural-net.h"
 
 int main(int argc, char **argv) {
-    if (argc < 6 || argc > 9) {
-        errx(1, "\nUsage:\n"
-                "./neural image_path learning_rate nb_input nb_hidden1 ... nb_hidden(n) "
-                "nb_output\n\n"
-                "Maximum of 5 hidden layers");
+    // Initialize randomizer
+    srand((unsigned int)time(NULL));
+    
+    test_matrix();
+
+    if (argc < 2) {
+        errx(1, "Usage: ./neural-net --xor|digit|guess");
     }
 
-    test_matrix();
+    if (strcmp(argv[1], "--digit") == 0) {
+        errx(1, "Not yet implemented!");
+    } else if(strcmp(argv[1], "--guess") == 0) {
+        if (argc != 4) {
+            errx(1, "\nUsage: ./neural-net --guess 0|1 0|1\nExample: ./neural-net --guess 0 1");
+        }
+        printf("%d", guess_xor(argv+2));
+    } else {
+        if (argc == 3) {
+            main_xor(argv[2]);
+        } else {
+            main_xor("");
+        }
+    }
+}
+
+int guess_xor(char **input) {
+    NeuralNetwork nn;
+    load_network(&nn, "save.neural");
+
+    nn.batch_size = 1;
+
+    float *W1 = nn.weights[0];
+    float *W2 = nn.weights[1];
+    float *b1 = nn.bias[0];
+    float *b2 = nn.bias[1];
+
+    float *Z1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
+    float *A1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
+    float *Z2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
+    float *A2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
+    
+    float X[2] = {atof(input[0]), atof(input[1])};
+    // FORWARD PROPAGATION
+    mat_multiply(Z1, W1, X, nn.weights_sizes[0][0], nn.weights_sizes[0][1], nn.batch_size);
+    mat_add_repeat(Z1, Z1, b1, nn.layers_node_count[1], nn.batch_size, 1);
+    mat_copy(Z1, A1, nn.layers_node_count[1] * nn.batch_size);
+
+    //mat_apply_relu(A1, network.layers_node_count[1] * network.batch_size);
+    mat_apply_sigmoid(A1, nn.layers_node_count[1] * nn.batch_size);
+
+    mat_multiply(Z2, W2, A1, nn.weights_sizes[1][0], nn.weights_sizes[1][1], nn.batch_size);
+    mat_add_repeat(Z2, Z2, b2, nn.layers_node_count[2], nn.batch_size, 1);
+    mat_copy(Z2, A2, nn.layers_node_count[2] * nn.batch_size);
+
+    //mat_apply_softmax(A2, network.layers_node_count[2], network.batch_size);
+    mat_apply_sigmoid(A2, nn.layers_node_count[2] * nn.batch_size);
+
+    return A2[0] > 0.5;
+}
+
+int main_xor(char *path) {
+    printf("XOR Neural Network\n");
+
 
     FILE *outputFile;
     outputFile = fopen("out.csv", "a");
 
-    int layer_count = argc - 3;
-    int layers_node_count[6];
+    NeuralNetwork nn;
 
-    float learning_rate = atof(argv[2]);
-    char *image_path = argv[1];
-    size_t len_dataset;
-    LabeledImage *dataset = load_dataset(image_path, &len_dataset);
-    size_t training_len = len_dataset*0.8;
-    printf("Training set = %zu\n", training_len);
+    int layers_node_count[3];
+    layers_node_count[0] = 2;
+    layers_node_count[1] = 8;
+    layers_node_count[2] = 1;
 
-    char *ptr;
-    for (int i = 3; i < argc; i++) {
-        layers_node_count[i - 3] = strtol(argv[i], &ptr, 10);
-    }
-
-    // Initialize randomizer
-    srand((unsigned int)time(NULL));
-
-    // Build neural network
-    float **weights;
-    weights = malloc((layer_count - 1) * sizeof(float *));
-
-    float **bias;
-    bias = malloc((layer_count - 1) * sizeof(float *));
-
-    Layer *layers;
-    layers = calloc(layer_count, sizeof(Layer));
-
-    NeuralNetwork network;
-
-    setup_network(&network, layers_node_count, learning_rate, layer_count, weights, bias,
-                  layers);
-
-    fprintf(outputFile, "epoch,training,validation\n");
-    for (int k = 0; k < 2000; k++) {
-
-        // TRAINING
-        int t_total = 0;
-        int t_correct = 0;
-
-        for (size_t i = 0; i < training_len; i++) {
-            int dataset_index = rand() % training_len;
-
-            guess(dataset[dataset_index].data, &network);
-            t_total++;
-            t_correct += is_prediction_correct(&network, dataset[dataset_index].label);
-
-            float targets[9];
-            get_target_array(targets, dataset[dataset_index]);
-            train(&network, targets);
-        }
-
-        // CALCULATING SCORE ON UNSEEN IMAGES
-        //if (k % 10 == 0) {
-            int total = 0;
-            int correct = 0;
-            for (size_t i = training_len; i < len_dataset; i++) {
-                guess(dataset[i].data, &network);
-                total++;
-                correct += is_prediction_correct(&network, dataset[i].label);
-            }
-            printf("%d => Training: %.2f%% | Fresh: %.2f%%\n", k,
-                    (float)t_correct * 100 / (float)t_total,
-                    (float)correct * 100 / (float)total);
-            fprintf(outputFile, "%d,%.2f,%.2f\n", k,
-                    (float)t_correct * 100 / (float)t_total,
-                    (float)correct * 100 / (float)total);
-            fflush(outputFile);
-        //}
-
-        if (k % 10 == 0) {
-            mat_print(network.weights[1], network.weights_sizes[1][0], network.weights_sizes[1][1]);
-        }
-    }
-
-    for (int i = 0; i < layer_count - 1; i++) {
-        free(weights[i]);
-        free(bias[i]);
-    }
-
-    free(weights);
-    free(bias);
-    free(layers);
-    free(dataset);
-    fclose(outputFile);
-}
-
-void setup_network(NeuralNetwork *network, int *layers_node_count, float learning_rate,
-                   int layer_count, float **weights, float **bias,
-                   Layer *layers) {
-
-    for (int i = 0; i < layer_count - 1; i++) {
-        network->weights_sizes[i][0] = layers_node_count[i + 1];
-        network->weights_sizes[i][1] = layers_node_count[i];
-        weights[i] = malloc(network->weights_sizes[i][0] *
-                            network->weights_sizes[i][1] * sizeof(float));
-        bias[i] = calloc(layers_node_count[i + 1], sizeof(float));
-        layers[i + 1].data = malloc(layers_node_count[i + 1] * sizeof(float));
-        layers[i + 1].size = layers_node_count[i + 1];
-        layers[i + 1].disabled = calloc(layers_node_count[i + 1], sizeof(char));
-        mat_randomize(weights[i], network->weights_sizes[i][0] *
-                                      network->weights_sizes[i][1]);
-    }
-
-    network->layers = layers;
-    network->bias = bias;
-    network->weights = weights;
-    network->layer_count = layer_count;
-    network->layers_node_count = layers_node_count;
-    network->learning_rate = learning_rate;
-
-    return;
-
-    FILE *ptr;
-    char s[50];
-    ptr = fopen("save.neural", "r");
-
-    if (NULL == ptr) {
-        printf("file can't be opened \n");
+    if (strlen(path) != 0) {
+        load_network(&nn, path);
+        printf("Network loaded from save\n");
     } else {
-        int current_layer = 0;
-        while (fgets(s, 50, ptr) != NULL && current_layer < layer_count) {
-            if (strcmp(s, "--\n")) {
-                current_layer++;
+        int layer_count = 3;
+        float learning_rate = 0.05;
+        int batch_size = 4;
+        setup_network(&nn, layers_node_count, batch_size, learning_rate, layer_count);
+        printf("New network created\n");
+    }
+
+
+    float X[2*4] = {
+        0, 0, 1, 1,
+        0, 1, 0, 1
+    };
+    float Y[4] = {
+        0, 1, 1, 0
+    };
+
+    float *W1 = nn.weights[0];
+    float *W2 = nn.weights[1];
+    float *b1 = nn.bias[0];
+    float *b2 = nn.bias[1];
+
+    float *Z1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
+    float *A1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
+    float *Z2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
+    float *A2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
+
+    float *dZ1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
+    float *dW1 = malloc(nn.weights_sizes[0][0] * nn.weights_sizes[0][1] * sizeof(float));
+    float db1;
+
+    float *dZ2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
+    float *dW2 = malloc(nn.weights_sizes[1][0] * nn.weights_sizes[1][1] * sizeof(float));
+    float db2;
+
+    float *A1_T = malloc(nn.batch_size * nn.layers_node_count[1] * sizeof(float));
+    float *dReluZ1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
+    float *W2_T = malloc(nn.weights_sizes[1][1] * nn.weights_sizes[1][0] * sizeof(float));
+    float *X_T = malloc(nn.batch_size * 2 * sizeof(float));
+
+    fprintf(outputFile, "epoch,training\n");
+    for (int k = 0; k < 1000001; k++) {
+        // FORWARD PROPAGATION
+        mat_multiply(Z1, W1, X, nn.weights_sizes[0][0], nn.weights_sizes[0][1], nn.batch_size);
+        mat_add_repeat(Z1, Z1, b1, nn.layers_node_count[1], nn.batch_size, 1);
+        mat_copy(Z1, A1, nn.layers_node_count[1] * nn.batch_size);
+
+        //mat_apply_relu(A1, network.layers_node_count[1] * network.batch_size);
+        mat_apply_sigmoid(A1, nn.layers_node_count[1] * nn.batch_size);
+
+        mat_multiply(Z2, W2, A1, nn.weights_sizes[1][0], nn.weights_sizes[1][1], nn.batch_size);
+        mat_add_repeat(Z2, Z2, b2, nn.layers_node_count[2], nn.batch_size, 1);
+        mat_copy(Z2, A2, nn.layers_node_count[2] * nn.batch_size);
+
+        //mat_apply_softmax(A2, network.layers_node_count[2], network.batch_size);
+        mat_apply_sigmoid(A2, nn.layers_node_count[2] * nn.batch_size);
+
+        // CALCULATE DEVIATION
+
+        mat_substract(dZ2, A2, Y, 1, nn.batch_size);
+        mat_transpose(A1_T, A1, nn.layers_node_count[1], nn.batch_size);
+        mat_multiply(dW2, dZ2, A1_T, nn.layers_node_count[2], nn.batch_size, nn.layers_node_count[1]);
+        mat_multiply_scalar(dW2, dW2, (float)1/nn.batch_size, nn.layers_node_count[2], nn.layers_node_count[1]);
+        db2 = mat_sum(dZ2, nn.layers_node_count[2] * nn.batch_size) / nn.batch_size;
+
+        mat_copy(A1, dReluZ1, nn.layers_node_count[1] * nn.batch_size);
+        //mat_apply_drelu(dReluZ1, network.layers_node_count[1] * network.batch_size);
+        mat_apply_dsigmoid(dReluZ1, nn.layers_node_count[1] * nn.batch_size);
+
+        mat_transpose(W2_T, W2, nn.weights_sizes[1][0], nn.weights_sizes[1][1]);
+        
+        mat_multiply(dZ1, W2_T, dZ2, nn.weights_sizes[1][1], nn.weights_sizes[1][0], nn.batch_size);
+        mat_multiply_hadamard(dZ1, dZ1, dReluZ1, nn.layers_node_count[1], nn.batch_size);
+
+        mat_transpose(X_T, X, 2, 4);
+        mat_multiply(dW1, dZ1, X_T, nn.layers_node_count[1], nn.batch_size, 2);
+        mat_multiply_scalar(dW1, dW1, (float)1/nn.batch_size, nn.layers_node_count[1], nn.layers_node_count[0]);
+        db1 = mat_sum(dZ1, nn.layers_node_count[1] * nn.batch_size) / nn.batch_size;
+        
+        // UPDATE INTERNAL PARAMETERS
+        mat_multiply_scalar(dW1, dW1, nn.learning_rate, nn.layers_node_count[1], nn.layers_node_count[0]);
+        mat_multiply_scalar(dW2, dW2, nn.learning_rate, nn.layers_node_count[2], nn.layers_node_count[1]);
+        db1 *= nn.learning_rate;
+        db2 *= nn.learning_rate;
+
+        mat_substract(W1, W1, dW1, nn.layers_node_count[1], nn.layers_node_count[0]);
+        mat_substract(W2, W2, dW2, nn.layers_node_count[2], nn.layers_node_count[1]);
+        mat_substract_ew(b1, b1, db1, nn.layers_node_count[1], 1);
+        mat_substract_ew(b2, b2, db2, nn.layers_node_count[2], 1);
+
+        float deviation = 0;
+        for (int i = 0; i < nn.batch_size; i++) {
+            deviation += fabsf(Y[i] - A2[i]);
+        }
+        deviation /= nn.batch_size;
+        if (k % 100 == 0) {
+            printf("\rEPOCH: %7d ~> %.5f", k, deviation);
+            fflush(stdout);
+        }
+        fprintf(outputFile, "%d,%.5f\n", k, deviation);
+        fflush(outputFile);
+    }
+    printf("\n");
+
+    save_network(&nn);
+
+    free(Z1);
+    free(A1);
+    free(Z2);
+    free(A2);
+    free(dZ1);
+    free(dW1);
+    free(dZ2);
+    free(dW2);
+    free(A1_T);
+    free(dReluZ1);
+    free(W2_T);
+    free(X_T);
+
+    for (int i = 0; i < nn.layer_count - 1; i++) {
+        free(nn.weights[i]);
+        free(nn.bias[i]);
+    }
+
+    free(nn.weights);
+    free(nn.bias);
+    free(nn.layers);
+    fclose(outputFile);
+
+    return 0;
+}
+
+void save_network(NeuralNetwork *nn) {
+    FILE *file;
+    file = fopen("save.neural", "w");
+    
+    fprintf(file, "%d\n", nn->layer_count);
+    fprintf(file, "%d\n", nn->batch_size);
+    fprintf(file, "%f\n", nn->learning_rate);
+    fprintf(file, "--l\n");
+    for (int k = 0; k < nn->layer_count; k++) {
+        fprintf(file, "%d\n", nn->layers_node_count[k]);
+    }
+    fprintf(file, "--w\n");
+    for (int k = 0; k < nn->layer_count-1; k++) {
+        size_t len = nn->weights_sizes[k][0] * nn->weights_sizes[k][1];
+        for (size_t c = 0; c < len; c++) {
+            fprintf(file,
+                    c == len - 1 ? "%f" : "%f,",
+                    nn->weights[k][c]);
+        }
+        fprintf(file, "\n");
+    }
+    fprintf(file, "--b\n");
+    for (int k = 0; k < nn->layer_count-1; k++) {
+        size_t len = nn->layers_node_count[k + 1];
+        for (size_t c = 0; c < len; c++) {
+            fprintf(file,
+                    c == len - 1 ? "%f" : "%f,",
+                    nn->bias[k][c]);
+        }
+        fprintf(file, "\n");
+    }
+    fclose(file);
+}
+
+enum Mode {
+    HYPERPARAMS,
+    LAYERS,
+    WEIGHTS,
+    BIAS,
+};
+
+void load_network(NeuralNetwork *nn, char *path) {
+    FILE *file;
+    file = fopen(path, "r");
+
+    if (!file) {
+        errx(1, "Could not load network from: %s", path);
+    }
+
+    char line[500];
+    int n = 0;
+    enum Mode mode = HYPERPARAMS;
+    while (fgets(line, 500, file) != NULL) {
+        if (strncmp(line, "--", 2) == 0) {
+            char *modestr = line + 2;
+            if (strncmp(modestr, "l", 1) == 0) {
+                mode = LAYERS;
+                nn->layers = calloc(nn->layer_count, sizeof(Layer));
+                nn->weights = malloc((nn->layer_count - 1) * sizeof(float *));
+                nn->bias = malloc((nn->layer_count - 1) * sizeof(float *));
+                nn->layers_node_count = malloc(nn->layer_count * sizeof(int));
+            } else if (strncmp(modestr, "w", 1)== 0) {
+                mode = WEIGHTS;
+                for (int i = 1; i < nn->layer_count; i++) {
+                    nn->weights_sizes[i-1][0] = nn->layers_node_count[i];
+                    nn->weights_sizes[i-1][1] = nn->layers_node_count[i-1];
+                    nn->weights[i-1] = malloc(nn->weights_sizes[i-1][0] *
+                                        nn->weights_sizes[i-1][1] * sizeof(float));
+                    nn->bias[i-1] = calloc(nn->layers_node_count[i], sizeof(float));
+                }
+            } else if (strncmp(modestr, "b", 1) == 0) {
+                mode = BIAS;
+            }
+            n = -1;
+        } else {
+            char *num;
+            int i = 0;
+            switch (mode) {
+                case HYPERPARAMS:
+                    if (n == 0) {
+                        nn->layer_count = atoi(line);
+                    } else if (n == 1) {
+                        nn->batch_size = atoi(line);
+                    } else if (n == 2) {
+                        nn->learning_rate = atof(line);
+                    }
+                    break;
+
+                case LAYERS:
+                    nn->layers_node_count[n] = atoi(line);
+                    break; 
+
+                case WEIGHTS:
+                    num = strtok(line, ",");
+                    while (num != NULL) {
+                        nn->weights[n][i] = atof(num);
+                        i++;
+                        num = strtok(NULL, ",");
+                    }
+                    break;
+
+                case BIAS:
+                    num = strtok(line, ",");
+                    while (num != NULL) {
+                        nn->bias[n][i] = atof(num);
+                        i++;
+                        num = strtok(NULL, ",");
+                    }
+                    break;
             }
         }
-        fclose(ptr);
+        n++;
     }
 }
 
-void guess(float *input, NeuralNetwork *network) {
-    network->layers[0].data = input;
+void setup_network(NeuralNetwork *nn, int *layers_node_count, int batch_size, float learning_rate, int layer_count) {
+    nn->weights = malloc((layer_count - 1) * sizeof(float *));
+    nn->bias = malloc((layer_count - 1) * sizeof(float *));
+    nn->layers = calloc(layer_count, sizeof(Layer));
+    nn->batch_size = batch_size;
 
-    // FeedForward
-    for (int j = 0; j < network->layer_count - 1; j++) {
-        mat_multiply(network->layers[j + 1].data, network->weights[j],
-                     network->layers[j].data, network->layers_node_count[j + 1],
-                     network->layers_node_count[j], 1);
-        mat_add(network->layers[j + 1].data, network->layers[j + 1].data,
-                network->bias[j], network->layers_node_count[j + 1], 1);
-
-        // Sigmoid for hidden layers, Softmax for output layer
-        if (j + 1 != network->layer_count - 1) {
-            mat_apply_sigmoid(network->layers[j + 1].data,
-                              network->layers_node_count[j + 1]);
-        } else {
-            mat_apply_softmax(network->layers[j + 1].data,
-                              network->layers_node_count[j + 1]);
-        }
-    }
-}
-
-void train(NeuralNetwork *network, float *targets) {
-    size_t output_size = network->layers_node_count[network->layer_count - 1];
-    float *output_layer = network->layers[network->layer_count - 1].data;
-    float *errors = malloc(output_size * sizeof(float));
-    mat_substract(errors, targets, output_layer, output_size, 1);
-
-    // Back Propagate
-    float *gradients = malloc(output_size * sizeof(float));
-    mat_copy(output_layer, gradients, output_size);
-    mat_apply_dsoftmax(gradients, output_size);
-    mat_multiply_hadamard(gradients, gradients, errors, output_size, 1);
-    mat_multiply_scalar(gradients, gradients, network->learning_rate, output_size, 1);
-
-    float *hidden_t = malloc(network->layers_node_count[1] * sizeof(float));
-    float *weights_ho_deltas =
-        malloc(network->weights_sizes[1][0] * network->weights_sizes[1][1] *
-               sizeof(float));
-    mat_transpose(hidden_t, network->layers[1].data, network->layers_node_count[1],
-                  1);
-    mat_multiply(weights_ho_deltas, gradients, hidden_t,
-                 network->layers_node_count[2], 1,
-                 network->layers_node_count[1]);
-
-    mat_add(network->weights[1], network->weights[1], weights_ho_deltas,
-            network->weights_sizes[1][0], network->weights_sizes[1][1]);
-    mat_add(network->bias[1], network->bias[1], gradients,
-            network->layers_node_count[2], 1);
-
-    for (int j = network->layer_count - 2; j > 0; j--) {
-        float *weight =
-            malloc(network->weights_sizes[j - 1][0] *
-                   network->weights_sizes[j - 1][1] * sizeof(float));
-        float *layer_errors =
-            malloc(network->layers_node_count[j] * sizeof(float));
-        float *layer_gradient =
-            malloc(network->layers_node_count[j] * sizeof(float));
-        mat_transpose(weight, network->weights[j - 1],
-                      network->weights_sizes[j - 1][0],
-                      network->weights_sizes[j - 1][1]);
-        mat_multiply(layer_errors, weight, errors, network->weights_sizes[j][1],
-                     network->weights_sizes[j][0], 1);
-        mat_copy(network->layers[j].data, layer_gradient,
-                 network->layers_node_count[j]);
-        mat_apply_dsigmoid(layer_gradient, network->layers_node_count[j]);
-        mat_multiply_hadamard(layer_gradient, layer_gradient, layer_errors,
-                              network->layers_node_count[j], 1);
-        mat_multiply_scalar(layer_gradient, layer_gradient, network->learning_rate,
-                            network->layers_node_count[j], 1);
-
-        float *previous_layer_T =
-            malloc(network->layers_node_count[j - 1] * sizeof(float));
-        float *weight_deltas =
-            malloc(network->weights_sizes[j - 1][0] *
-                   network->weights_sizes[j - 1][1] * sizeof(float));
-        mat_transpose(previous_layer_T, network->layers[j - 1].data,
-                      network->layers_node_count[j - 1], 1);
-        mat_multiply(weight_deltas, layer_gradient, previous_layer_T,
-                     network->layers_node_count[j], 1,
-                     network->layers_node_count[j - 1]);
-
-        mat_add(network->weights[j - 1], network->weights[j - 1], weight_deltas,
-                network->weights_sizes[j - 1][0],
-                network->weights_sizes[j - 1][1]);
-        mat_add(network->bias[j - 1], network->bias[j - 1], layer_gradient,
-                network->layers_node_count[j], 1);
-
-        free(weight);
-        free(weight_deltas);
-        free(layer_gradient);
-        free(layer_errors);
-        free(previous_layer_T);
+    for (int i = 1; i < layer_count; i++) {
+        nn->weights_sizes[i-1][0] = layers_node_count[i];
+        nn->weights_sizes[i-1][1] = layers_node_count[i-1];
+        nn->weights[i-1] = malloc(nn->weights_sizes[i-1][0] *
+                                  nn->weights_sizes[i-1][1] * sizeof(float));
+        nn->bias[i-1] = calloc(layers_node_count[i], sizeof(float));
+        nn->layers[i].data = malloc(layers_node_count[i] * nn->batch_size * sizeof(float));
+        nn->layers[i].z = malloc(layers_node_count[i] * nn->batch_size * sizeof(float));
+        nn->layers[i].dz = malloc(layers_node_count[i] * nn->batch_size * sizeof(float));
+        nn->layers[i].size = layers_node_count[i];
+        nn->layers[i].disabled = calloc(layers_node_count[i], sizeof(char));
+        mat_randomize(nn->weights[i-1], nn->weights_sizes[i-1][0] *
+                                      nn->weights_sizes[i-1][1]);
     }
 
-    free(errors);
-    free(gradients);
-    free(weights_ho_deltas);
-    free(hidden_t);
-}
-
-void dropout(Layer *layer, float alpha) {
-    for (size_t i = 0; i < layer->size; i++) {
-        char disabled = ((float)rand() / RAND_MAX) < alpha;
-        layer->disabled[i] = disabled;
-    }
-}
-
-int is_prediction_correct(NeuralNetwork *network, int label) {
-    size_t output_size = network->layers_node_count[network->layer_count - 1];
-    float *output_layer = network->layers[network->layer_count - 1].data;
-
-    size_t max_index = 0;
-    for (size_t j = 0; j < output_size; j++) {
-        if (output_layer[j] > output_layer[max_index]) {
-            max_index = j;
-        }
-    }
-    return (int)max_index+1 == label;
-}
-
-void get_target_array(float arr[9], LabeledImage img) {
-    for (int i = 0; i < 9; i++) {
-        arr[i] = i == img.label ? 1 : 0;
-    }
+    nn->layer_count = layer_count;
+    nn->layers_node_count = layers_node_count;
+    nn->learning_rate = learning_rate;
+    nn->loss = 0;
 }
 
 LabeledImage *load_dataset(char *path, size_t *len_d) {
@@ -326,28 +409,10 @@ LabeledImage *load_dataset(char *path, size_t *len_d) {
     return dataset;
 }
 
-void get_input(float *res, char *image_path) {
-    SDL_Surface *surface;
-    surface = IMG_Load(image_path);
-    if (!surface) {
-        errx(1, "Could not load image (%s)", image_path);
-    }
-    int w, h;
-    w = surface->w;
-    h = surface->h;
-
-    Uint8 r, g, b;
+void print_pixel(float* img, int w, int h) {
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
-            GetPixelColor(surface, x, y, &r, &g, &b);
-            unsigned char average = (r + g + b) / 3;
-            res[x * 28 + y] = (float)average / 255;
-        }
-    }
-
-    /*for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            float a = res[x * 28 + y] * 255;
+            float a = img[x * 28 + y] * 255;
             char c;
             if (a > 240)
                 c = ' ';
@@ -370,6 +435,27 @@ void get_input(float *res, char *image_path) {
             printf("%c", c);
         }
         printf("\n");
-    }*/
+    }
+}
+
+void get_input(float *res, char *image_path) {
+    SDL_Surface *surface;
+    surface = IMG_Load(image_path);
+    if (!surface) {
+        errx(1, "Could not load image (%s)", image_path);
+    }
+    int w, h;
+    w = surface->w;
+    h = surface->h;
+
+    Uint8 r, g, b;
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            GetPixelColor(surface, x, y, &r, &g, &b);
+            unsigned char average = (r + g + b) / 3;
+            res[x * 28 + y] = (float)average / 255;
+        }
+    }
+
     SDL_FreeSurface(surface);
 }

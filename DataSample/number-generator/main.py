@@ -7,6 +7,7 @@ import base64
 import sys
 
 WHITE = (255,255,255,255)
+BLACK = (0,0,0,255)
 DISPLACEMENT = 4
 RANDOM_NOISE = 30
 
@@ -19,26 +20,39 @@ for f in dir_list:
     fonts.append('./fonts/'+f)
 
 lenfont = len(fonts)
+def binarize(img):
+
+    thresh=200
+
+    img=img.convert('L') 
+
+    width,height=img.size
+    for x in range(width):
+        for y in range(height):
+            if img.getpixel((x,y)) < thresh:
+                img.putpixel((x,y),0)
+            else:
+                img.putpixel((x,y),255)
+    return img
 
 def create_image(num, i):
     rotate = random.randrange(-20, 20)
     col_rand = random.randrange(200, 255)
     coltext_rand = random.randrange(0, 90)
-    greycol = (col_rand, col_rand, col_rand, 255)
-    greycoltext = (coltext_rand, coltext_rand, coltext_rand, 255)
+    greycol = (255, 255, 255, 255)
+    greycoltext = (0, 0, 0, 255)
 
     img = Image.new(mode = "RGB", size= (width, height), color=greycol)
     img = img.rotate(rotate, fillcolor=greycol)
 
     draw = ImageDraw.Draw(img)
 
-    for k in range(RANDOM_NOISE):
+    for k in range(5):
         x = random.randrange(0, width)
         y = random.randrange(0, height)
-        grey = random.randrange(100, 255)
-        x_size = random.randrange(1, 3)
-        y_size = random.randrange(1, 3)
-        draw.rectangle((x,y,x+x_size,y+y_size), fill=(grey, grey, grey, 255))
+        x_size = random.randrange(1, 2)
+        y_size = random.randrange(1, 2)
+        draw.rectangle((x,y,x+x_size,y+y_size), fill=BLACK)
     
     imgx = img.filter(ImageFilter.GaussianBlur(0.8))
     drawx = ImageDraw.Draw(imgx)
@@ -50,15 +64,9 @@ def create_image(num, i):
     font = ImageFont.truetype(fontname, 24)
     drawx.text((width/2+d_x,height/2+d_y), str(num), font=font, anchor="mm", fill=greycoltext)
 
-    for k in range(RANDOM_NOISE):
-        x = random.randrange(0, width)
-        y = random.randrange(0, height)
-        grey = random.randrange(100, 255)
-        imgx.putpixel((x,y), (grey, grey, grey, 255))
-    
     imgx = imgx.rotate(-rotate, fillcolor=greycol)
 
-    blur = imgx.filter(ImageFilter.GaussianBlur(0.4))
+    blur = binarize(imgx.filter(ImageFilter.GaussianBlur(0.4)))
     filename = hashlib.sha256(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[:8]
     blur.save("./output/"+str(num)+"__"+filename+".bmp", format="BMP")
 

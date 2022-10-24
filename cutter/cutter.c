@@ -433,9 +433,10 @@ void CropSquares(SDL_Surface *surface, unsigned int *normalSpace){
             int squareHeight = yCoords[y+1][x] - yCoords[y][x];
             SDL_Surface *square = CropSurface(surface, xCoords[y][x], yCoords[y][x], squareWidth, squareHeight);
 
-            char name[7] = {(char) x, '-', (char) y, '.', 'p', 'n', 'g'};
+            char folder[40] = "DataSample/cutter/squares/";
+            char name[10] = {x+'1', '-', y+'1', '.', 'p', 'n', 'g'};
 
-            IMG_SavePNG(square, name);
+            IMG_SavePNG(square, strcat(folder, name));
             SDL_FreeSurface(square);
 
             x++;

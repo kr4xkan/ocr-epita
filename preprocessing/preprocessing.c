@@ -86,9 +86,9 @@ void dumb_bin(SDL_Surface *surface){
     int w = surface->w;
     int h = surface->h;
     int threshold = otsu(surface, w, h);
-    for (size_t i = 0; i < h; i++)
+    for (int i = 0; i < h; i++)
     {
-        for(size_t k = 0; k < w; k++)
+        for(int k = 0; k < w; k++)
         {
             Uint8 r,g,b;
             SDL_GetRGB(pixels[i*w+k],surface->format, &r,&g,&b);
@@ -106,17 +106,11 @@ void binarization(char *path){
 
     surface_to_grayscale(surface);
 
-    IMG_SavePNG(surface, "gray.png");
+    dumb_bin(surface);
 
-    SDL_Surface *surf2 = load_image("gray.png");
-
-    dumb_bin(surf2);
-
-    IMG_SavePNG(surf2, "dumb.png");
+    IMG_SavePNG(surface, "binary.png");
 
     SDL_FreeSurface(surface);
-
-    SDL_FreeSurface(surf2);
 }
 
 int main(int argc, char **argv) {

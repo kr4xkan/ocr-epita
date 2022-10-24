@@ -11,5 +11,4 @@ OBJ = ${SRC:.c=.o}
 
 clean: 
 	${RM} ${OBJ}
-	${RM} ${EXE}
 	${RM} solver

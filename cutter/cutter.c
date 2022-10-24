@@ -394,50 +394,67 @@ void CropSquares(SDL_Surface *surface, unsigned int *normalSpace){
 
     unsigned int xCoords[20][20] = {};
     unsigned int yCoords[20][20] = {};
-    size_t arrayX = 0, arrayY = 0;
+    int arrayX = 0, arrayY = -1;
 
-    int ouaip = 0;
+    unsigned int x = w+1;
 
     int y = 0;
     for (int i = 0; i < w*h; i++){
         unsigned int val = normalSpace[i];
+
         if (val >= 2){
+            unsigned int x0 = i%w;
+            if (x0 < x){
+                arrayY++;
+                arrayX = 0;
+            }
+            else{
+                arrayX++;
+            }
+            x = x0;
 
-            printf("%i\n", i);
-            xCoords[arrayY][arrayX] = i%h;
-            printf("%i\n", i);
+            xCoords[arrayY][arrayX] = x;
             yCoords[arrayY][arrayX] = y;
-            arrayX++;
         }
-
-
 
         if(i%w == 0){
             y++;
-            ouaip++;
         }
-        if (ouaip >= 10){
-            arrayY++;
-            arrayX = 0;
-        }
-
     }
+
 
     
-    int x = 0;
+    x = 0;
     y = 0;
-    while(xCoords[y][0] != 0){
-        while(xCoords[y][x] != 0){
+    while(y < 9){
+        while(x < 9){
+            
+            int squareWidth = xCoords[y][x+1] - xCoords[y][x];
+            int squareHeight = yCoords[y+1][x] - yCoords[y][x];
+            SDL_Surface *square = CropSurface(surface, xCoords[y][x], yCoords[y][x], squareWidth, squareHeight);
 
-            printf("%i ", xCoords[y][x]);
+            char name[7] = {(char) x, '-', (char) y, '.', 'p', 'n', 'g'};
+
+            IMG_SavePNG(square, name);
+            SDL_FreeSurface(square);
+
             x++;
         }
-        printf("\n");
         y++;
+        x = 0;
     }
-
+    
 }
 
+SDL_Surface* CropSurface(SDL_Surface* surface, int x, int y, int width, int height){
+    SDL_Surface* newSurface = 
+        SDL_CreateRGBSurface(surface->flags, width, height, surface->format->BitsPerPixel, surface->format->Rmask, 
+        surface->format->Gmask, surface->format->Bmask, surface->format->Amask);
+
+    SDL_Rect rect = {x, y, width, height};
+    SDL_BlitSurface(surface, &rect, newSurface, 0);
+    return newSurface;
+}
 
 //----------------------------UTILS--------------------------
 void PrintMat(unsigned int * accumulator){

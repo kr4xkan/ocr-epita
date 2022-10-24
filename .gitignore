@@ -1,3 +1,7 @@
+# Python
+venv/
+output/
+
 # Build file
 main
 

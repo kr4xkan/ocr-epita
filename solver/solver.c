@@ -22,6 +22,26 @@ void print(int grid[10][10]){
 	}
 }
 
+
+void print_file(int grid[10][10]){
+	FILE * file;
+	file = fopen("result.txt", "w");
+	for(size_t i = 0; i < 9 ; i++){
+		if (i == 3 || i == 6){
+				fprintf(file, "\n");
+		}
+		for(size_t j =0; j < 9; j++){
+			if(j == 3 || j == 6){
+				fprintf(file, " ");
+			}
+			fprintf(file, "%i", grid[i][j]);
+		}
+		fprintf(file,"\n");
+	}
+	fclose(file);
+}
+
+
 int check_safe(int grid[10][10], int row, int col, int num){
 	for (int i = 0; i < 9 ; i ++){
 		if (grid[row][i] == num){
@@ -125,7 +145,7 @@ int main(int argc, char **argv){
 		int grid[10][10];
 		argv_to_grid(argv[1], grid);
 		if (solver(grid, 0, 0) == 1){
-			print(grid);
+			print_file(grid);
 		}
 		else{
 			printf("no solution found\n");

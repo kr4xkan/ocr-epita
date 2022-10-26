@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
         if (argc != 4) {
             errx(1, "\nUsage: ./neural-net --guess 0|1 0|1\nExample: ./neural-net --guess 0 1");
         }
-        printf("%d", guess_xor(argv+2));
+        printf("%d\n", guess_xor(argv+2));
     } else {
         if (argc == 3) {
             main_xor(argv[2]);

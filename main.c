@@ -31,12 +31,11 @@ int main() {
         unsigned int *accumulatorRotated = DetectLines(surfaceRotated);
         unsigned int *spaceRotated =
             DetectIntersections(surfaceRotated, accumulatorRotated);
+        CropSquares(surfaceRotated, spaceRotated);
 
         DrawLines(surfaceRotated, accumulatorRotated, surfaceRotated->pixels);
         DrawIntersections(surfaceRotated, spaceRotated);
-        IMG_SavePNG(surfaceRotated, "surface.png");
-
-        // CropSquares(surfaceRotated, spaceRotated);
+        IMG_SavePNG(surfaceRotated, "result.png");
 
         free(spaceRotated);
         free(accumulatorRotated);
@@ -46,7 +45,7 @@ int main() {
 
         DrawLines(surface, accumulator, surface->pixels);
         DrawIntersections(surface, space);
-        IMG_SavePNG(surface, "surface.png");
+        IMG_SavePNG(surface, "result.png");
 
         free(space);
     }

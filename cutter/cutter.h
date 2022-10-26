@@ -23,6 +23,8 @@ void ComputeLine(unsigned int *linesArray, long int w, long int h, long int x1,
 
 // -----------------------------Crop--------------------------------------
 void CropSquares(SDL_Surface *surface, unsigned int *normalSpace);
+SDL_Surface *CropSurface(SDL_Surface *surface, int x, int y, int width,
+                         int height);
 
 // -----------------------------UTILS-------------------------------------
 void DrawIntersections(SDL_Surface *surface, unsigned int *accumulator);

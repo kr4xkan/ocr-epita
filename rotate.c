@@ -1,18 +1,17 @@
-#include "err.h"
 #include "cutter/cutter.h"
+#include "err.h"
 #include "utils.h"
 
 int main(int argc, char **argv) {
     if (argc != 3)
-        errx(1, "\nUsage: ./rotate <image_path> <angle>\nExample: ./rotate image.png 20");
-
+        errx(1, "\nUsage: ./rotate <image_path> <angle>\nExample: ./rotate "
+                "image.png 20");
 
     SDL_Surface *surface = LoadImage(argv[1]);
-    if (!surface) 
+    if (!surface)
         errx(1, "Could not load image");
 
     float angle = atof(argv[2]);
-    
 
     SDL_Surface *rotated = RotateSurface(surface, angle);
 

@@ -38,7 +38,8 @@ void save_network(NeuralNetwork *nn);
 
 void load_network(NeuralNetwork *nn, char *path);
 
-void setup_network(NeuralNetwork *nn, int *layers_node_count, int batch_size, float learning_rate, int layer_count);
+void setup_network(NeuralNetwork *nn, int *layers_node_count, int batch_size,
+                   float learning_rate, int layer_count);
 
 void get_input(float *res, char *image_path);
 

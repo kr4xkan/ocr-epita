@@ -30,7 +30,7 @@ ___
 
 ## Solver
 
-### Solves and print the input board
+### Solves and saves the solved grid to <path>.result
 ```
 ./solver test.grid
 ``` 

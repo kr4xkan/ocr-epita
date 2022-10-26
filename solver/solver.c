@@ -23,9 +23,12 @@ void print(int grid[10][10]){
 }
 
 
-void print_file(int grid[10][10]){
+void print_file(int grid[10][10], char *path){
 	FILE * file;
-	file = fopen("result.txt", "w");
+    char *new_str = malloc((strlen(path) + 7) * sizeof(char));
+    strcpy(new_str, path);
+    strcat(new_str, ".result");
+	file = fopen(new_str, "w");
 	for(size_t i = 0; i < 9 ; i++){
 		if (i == 3 || i == 6){
 				fprintf(file, "\n");
@@ -39,6 +42,7 @@ void print_file(int grid[10][10]){
 		fprintf(file,"\n");
 	}
 	fclose(file);
+    free(new_str);
 }
 
 
@@ -145,7 +149,7 @@ int main(int argc, char **argv){
 		int grid[10][10];
 		argv_to_grid(argv[1], grid);
 		if (solver(grid, 0, 0) == 1){
-			print_file(grid);
+			print_file(grid, argv[1]);
 		}
 		else{
 			printf("no solution found\n");

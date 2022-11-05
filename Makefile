@@ -15,13 +15,22 @@ SRC_ROT = rotate.c cutter/cutter.c utils.c
 OBJ_ROT = ${SRC_ROT:.c=.o}
 DEP_ROT = ${SRC_ROT:.c=.d}
 
-all: main rotate
+all: main rotate neural preprocessing solver
 
 rotate: ${OBJ_ROT}
 
 main: ${OBJ}
 
-.PHONY: clean
+neural:
+	$(MAKE) -C neural-net/
+
+preprocessing:
+	$(MAKE) -C preprocessing/
+
+solver:
+	$(MAKE) -C solver/
+
+.PHONY: clean preprocessing solver
 
 clean:
 	${RM} ${OBJ}
@@ -30,6 +39,10 @@ clean:
 	${RM} ${OBJ_ROT}
 	${RM} ${DEP_ROT}
 	${RM} rotate
+
+	$(MAKE) -C neural-net/ clean
+	$(MAKE) -C preprocessing/ clean
+	$(MAKE) -C solver/ clean
 
 #don't raise error if DEP files not found
 -include ${DEP}

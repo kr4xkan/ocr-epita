@@ -2,9 +2,10 @@
 
 CC = gcc
 CPPFLAGS =
-CFLAGS = -Wall -Wextra -O3 `pkg-config --cflags sdl2 SDL2_image`
+CFLAGS = -Wall -Wextra -std=c99 -g \
+		 $(shell pkg-config --cflags sdl2 SDL2_image)
 LDFLAGS =
-LDLIBS = `pkg-config --libs sdl2 SDL2_image`
+LDLIBS = -lm $(shell pkg-config --libs sdl2 SDL2_image)
 
 all: preprocessing
 

@@ -22,7 +22,7 @@ int main() {
 
     unsigned int *accumulator = DetectLines(surface);
 
-    // PrintMat(accumulator);
+    //PrintMat(accumulator);
 
     // Rotate the image if necessary
     SDL_Surface *surfaceRotated = CheckRotation(surface, accumulator);
@@ -42,6 +42,7 @@ int main() {
         SDL_FreeSurface(surfaceRotated);
     } else {
         unsigned int *space = DetectIntersections(surface, accumulator);
+        CropSquares(surface, space);
 
         DrawLines(surface, accumulator, surface->pixels);
         DrawIntersections(surface, space);

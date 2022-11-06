@@ -157,9 +157,9 @@ int AlreadyExist(int theta, int rho, unsigned int rhoValues[],
      */
 
     for (size_t i = 0; i < len; i++) {
-        int dTheta = abs((int)thetaValues[i] - theta);
+        int dTheta = abs((int)thetaValues[i]%180 - theta%180);
         int dRho = abs((int)rhoValues[i] - rho);
-        if ((dTheta <= 10 || dTheta >= 350) && dRho <= maxGap) {
+        if ((dTheta <= 10 || dTheta >= 170) && dRho <= maxGap) {
             return 1;
         }
     }
@@ -175,7 +175,6 @@ SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator) {
 
     int count = 0;
     int sum = 0;
-
     for (int i = 0; i < accumulatorSize; i++) {
 
         unsigned int val = accumulator[i];
@@ -184,6 +183,8 @@ SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator) {
             // computing an average angle to rotate
             int theta = i % maxTheta;
             if (theta < 90) {
+                if (theta == 0) 
+                    return NULL;
                 sum += theta;
                 count++;
             }
@@ -399,6 +400,14 @@ void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
         }
     }
 
+
+    // Checking if all 100 intersections have been found
+    if (!(xCoords[9][9] != 0 && xCoords[9][10] == 0) ||
+        !(yCoords[9][9] != 0 && yCoords[9][10] == 0)) {
+        printf("Could not crop squares\n");
+        return;
+    }
+    
     x = 0;
     y = 0;
     while (y < 9) {
@@ -421,6 +430,7 @@ void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
         y++;
         x = 0;
     }
+    printf("All squares have been cropped\n");
 }
 
 SDL_Surface *CropSurface(SDL_Surface *surface, int x, int y, int width,

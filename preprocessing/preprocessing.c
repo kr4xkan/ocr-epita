@@ -94,6 +94,8 @@ void binarization(char *path) {
 
     surface_to_grayscale(surface);
 
+    IMG_SavePNG(surface, "grayscale.png");
+
     dumb_bin(surface);
 
     IMG_SavePNG(surface, "binary.png");

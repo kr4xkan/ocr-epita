@@ -65,7 +65,7 @@ void mat_add_repeat(float *res, float *a, float *b, size_t m, size_t n,
                     size_t j) {
     for (size_t c = 0; c < n; c++) {
         for (size_t r = 0; r < m; r++) {
-            res[r * n + c] = a[r * n + c] + b[r * (n % j) + c];
+            res[r * n + c] = a[r * n + c] + b[r * j + (c%j)];
         }
     }
 }
@@ -94,12 +94,14 @@ void mat_transpose(float *res, float *a, size_t m, size_t n) {
     }
 }
 
-float mat_sum(float *a, size_t len) {
-    float sum = 0;
-    for (size_t c = 0; c < len; c++) {
-        sum += a[c];
+void mat_sum_vector(float *res, float *a, size_t m, size_t n) {
+    for (size_t r = 0; r < m; r++) {
+        float sum = 0;
+        for (size_t c = 0; c < n; c++) {
+            sum += a[r * n + c];
+        }
+        res[r] = sum;
     }
-    return sum;
 }
 
 void mat_apply_relu(float *res, size_t n) {

@@ -9,9 +9,9 @@ struct LabeledImage {
 typedef struct LabeledImage LabeledImage;
 
 struct Layer {
-    float *data;
-    float *z;
-    float *dz;
+    float *A;
+    float *Z;
+    float *DZ;
     char *disabled;
     size_t size;
 };

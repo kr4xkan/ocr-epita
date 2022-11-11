@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 
+#include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_surface.h>
 
@@ -102,6 +103,8 @@ int main_xor(char *path) {
     }
 
     float X[2 * 4] = {0, 0, 1, 1, 0, 1, 0, 1};
+    nn.layers[0].A = X;
+
     float Y[4] = {0, 1, 1, 0};
 
     float *W1 = nn.weights[0];
@@ -109,22 +112,13 @@ int main_xor(char *path) {
     float *b1 = nn.bias[0];
     float *b2 = nn.bias[1];
 
-    float *Z1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *A1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *Z2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
-    float *A2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
-
-    float *dZ1 =
-        malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
     float *dW1 =
         malloc(nn.weights_sizes[0][0] * nn.weights_sizes[0][1] * sizeof(float));
-    float db1;
+    float *db1 = malloc(nn.layers_node_count[1] * sizeof(float));
 
-    float *dZ2 =
-        malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
     float *dW2 =
         malloc(nn.weights_sizes[1][0] * nn.weights_sizes[1][1] * sizeof(float));
-    float db2;
+    float *db2 = malloc(nn.layers_node_count[2] * sizeof(float));
 
     float *A1_T =
         malloc(nn.batch_size * nn.layers_node_count[1] * sizeof(float));
@@ -137,72 +131,62 @@ int main_xor(char *path) {
     fprintf(outputFile, "epoch,training\n");
     for (int k = 0; k < 1000001; k++) {
         // FORWARD PROPAGATION
-        mat_multiply(Z1, W1, X, nn.weights_sizes[0][0], nn.weights_sizes[0][1],
-                     nn.batch_size);
-        mat_add_repeat(Z1, Z1, b1, nn.layers_node_count[1], nn.batch_size, 1);
-        mat_copy(Z1, A1, nn.layers_node_count[1] * nn.batch_size);
+        for (int i = 0; i < nn.layer_count - 1; i++) {
+            mat_multiply(nn.layers[i+1].Z, nn.weights[i], nn.layers[i].A, nn.weights_sizes[i][0], nn.weights_sizes[i][1],
+                         nn.batch_size);
+            mat_add_repeat(nn.layers[i+1].Z, nn.layers[i+1].Z, b1, nn.layers_node_count[i+1], nn.batch_size, 1);
+            mat_copy(nn.layers[i+1].Z, nn.layers[i+1].A, nn.layers_node_count[i+1] * nn.batch_size);
 
-        // mat_apply_relu(A1, network.layers_node_count[1] *
-        // network.batch_size);
-        mat_apply_sigmoid(A1, nn.layers_node_count[1] * nn.batch_size);
-
-        mat_multiply(Z2, W2, A1, nn.weights_sizes[1][0], nn.weights_sizes[1][1],
-                     nn.batch_size);
-        mat_add_repeat(Z2, Z2, b2, nn.layers_node_count[2], nn.batch_size, 1);
-        mat_copy(Z2, A2, nn.layers_node_count[2] * nn.batch_size);
-
-        // mat_apply_softmax(A2, network.layers_node_count[2],
-        // network.batch_size);
-        mat_apply_sigmoid(A2, nn.layers_node_count[2] * nn.batch_size);
+            // mat_apply_relu(A1, network.layers_node_count[1] *
+            // network.batch_size);
+            mat_apply_sigmoid(nn.layers[i+1].A, nn.layers_node_count[i+1] * nn.batch_size);
+        }
 
         // CALCULATE DEVIATION
-
-        mat_substract(dZ2, A2, Y, 1, nn.batch_size);
-        mat_transpose(A1_T, A1, nn.layers_node_count[1], nn.batch_size);
-        mat_multiply(dW2, dZ2, A1_T, nn.layers_node_count[2], nn.batch_size,
+        mat_substract(nn.layers[2].DZ, nn.layers[2].A, Y, 1, nn.batch_size);
+        mat_transpose(A1_T, nn.layers[1].A, nn.layers_node_count[1], nn.batch_size);
+        mat_multiply(dW2, nn.layers[2].DZ, A1_T, nn.layers_node_count[2], nn.batch_size,
                      nn.layers_node_count[1]);
         mat_multiply_scalar(dW2, dW2, (float)1 / nn.batch_size,
                             nn.layers_node_count[2], nn.layers_node_count[1]);
-        db2 = mat_sum(dZ2, nn.layers_node_count[2] * nn.batch_size) /
-              nn.batch_size;
+        mat_sum_vector(db2, nn.layers[2].DZ, nn.layers_node_count[2], nn.batch_size);
+        mat_multiply_scalar(db2, db2, (float)nn.learning_rate/nn.batch_size, nn.layers_node_count[2], 1);
 
-        mat_copy(A1, dReluZ1, nn.layers_node_count[1] * nn.batch_size);
+        mat_copy(nn.layers[1].A, dReluZ1, nn.layers_node_count[1] * nn.batch_size);
         // mat_apply_drelu(dReluZ1, network.layers_node_count[1] *
         // network.batch_size);
         mat_apply_dsigmoid(dReluZ1, nn.layers_node_count[1] * nn.batch_size);
 
         mat_transpose(W2_T, W2, nn.weights_sizes[1][0], nn.weights_sizes[1][1]);
 
-        mat_multiply(dZ1, W2_T, dZ2, nn.weights_sizes[1][1],
+        mat_multiply(nn.layers[1].DZ, W2_T, nn.layers[2].DZ, nn.weights_sizes[1][1],
                      nn.weights_sizes[1][0], nn.batch_size);
-        mat_multiply_hadamard(dZ1, dZ1, dReluZ1, nn.layers_node_count[1],
+        mat_multiply_hadamard(nn.layers[1].DZ, nn.layers[1].DZ, dReluZ1, nn.layers_node_count[1],
                               nn.batch_size);
 
         mat_transpose(X_T, X, 2, 4);
-        mat_multiply(dW1, dZ1, X_T, nn.layers_node_count[1], nn.batch_size, 2);
+        mat_multiply(dW1, nn.layers[1].DZ, X_T, nn.layers_node_count[1], nn.batch_size, 2);
         mat_multiply_scalar(dW1, dW1, (float)1 / nn.batch_size,
                             nn.layers_node_count[1], nn.layers_node_count[0]);
-        db1 = mat_sum(dZ1, nn.layers_node_count[1] * nn.batch_size) /
-              nn.batch_size;
+        mat_sum_vector(db1, nn.layers[1].DZ, nn.layers_node_count[1], nn.batch_size);
+        mat_multiply_scalar(db1, db1, (float)nn.learning_rate/nn.batch_size, nn.layers_node_count[1], 1);
 
         // UPDATE INTERNAL PARAMETERS
         mat_multiply_scalar(dW1, dW1, nn.learning_rate, nn.layers_node_count[1],
                             nn.layers_node_count[0]);
         mat_multiply_scalar(dW2, dW2, nn.learning_rate, nn.layers_node_count[2],
                             nn.layers_node_count[1]);
-        db1 *= nn.learning_rate;
-        db2 *= nn.learning_rate;
 
         mat_substract(W1, W1, dW1, nn.layers_node_count[1],
                       nn.layers_node_count[0]);
         mat_substract(W2, W2, dW2, nn.layers_node_count[2],
                       nn.layers_node_count[1]);
-        mat_substract_ew(b1, b1, db1, nn.layers_node_count[1], 1);
-        mat_substract_ew(b2, b2, db2, nn.layers_node_count[2], 1);
+        mat_substract(b1, b1, db1, nn.layers_node_count[1], 1);
+        mat_substract(b2, b2, db2, nn.layers_node_count[2], 1);
 
         float deviation = 0;
         for (int i = 0; i < nn.batch_size; i++) {
-            deviation += fabsf(Y[i] - A2[i]);
+            deviation += fabsf(Y[i] - nn.layers[2].A[i]);
         }
         deviation /= nn.batch_size;
         if (k % 100 == 0) {
@@ -216,13 +200,7 @@ int main_xor(char *path) {
 
     save_network(&nn);
 
-    free(Z1);
-    free(A1);
-    free(Z2);
-    free(A2);
-    free(dZ1);
     free(dW1);
-    free(dZ2);
     free(dW2);
     free(A1_T);
     free(dReluZ1);
@@ -369,11 +347,11 @@ void setup_network(NeuralNetwork *nn, int *layers_node_count, int batch_size,
             malloc(nn->weights_sizes[i - 1][0] * nn->weights_sizes[i - 1][1] *
                    sizeof(float));
         nn->bias[i - 1] = calloc(layers_node_count[i], sizeof(float));
-        nn->layers[i].data =
+        nn->layers[i].A =
             malloc(layers_node_count[i] * nn->batch_size * sizeof(float));
-        nn->layers[i].z =
+        nn->layers[i].Z =
             malloc(layers_node_count[i] * nn->batch_size * sizeof(float));
-        nn->layers[i].dz =
+        nn->layers[i].DZ =
             malloc(layers_node_count[i] * nn->batch_size * sizeof(float));
         nn->layers[i].size = layers_node_count[i];
         nn->layers[i].disabled = calloc(layers_node_count[i], sizeof(char));

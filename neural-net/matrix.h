@@ -27,7 +27,7 @@ void mat_substract_ew(float *res, float *a, float b, size_t m, size_t n);
 
 void mat_transpose(float *res, float *a, size_t n, size_t m);
 
-float mat_sum(float *a, size_t len);
+void mat_sum_vector(float *res, float *a, size_t m, size_t n);
 
 void mat_apply_relu(float *res, size_t n);
 

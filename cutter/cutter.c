@@ -6,6 +6,9 @@
 #include "../utils.h"
 #include "cutter.h"
 
+#include <string.h>
+#include <time.h>
+
 #define pi 3.1415926535
 #define maxTheta 360
 
@@ -21,6 +24,108 @@ unsigned int minPeak;
 
 double cosArray[maxTheta];
 double sinArray[maxTheta];
+
+
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        errx(1, "Usage: ./cutter --cut|--rotate");
+    }
+
+
+    if (strcmp(argv[1], "--cut") == 0) {
+        if (argc != 3) {
+            errx(1, "\nUsage: ./cutter --cut <image_path>\nExample:" 
+                    "./cutter --cut original/image_01.jpeg");
+        }
+        return MainCutter(argv[2]);
+    } 
+
+    else if (strcmp(argv[1], "--rotate") == 0){
+        if (argc != 4){
+            errx(1, "\nUsage: ./rotate --rotate <image_path> <angle>\nExample: ./rotate "
+                    "image.png 20");
+        }
+
+        SDL_Surface *surface = LoadImage(argv[2]);
+        if (!surface)
+            errx(1, "Could not load image");
+
+        float angle = atof(argv[3]);
+
+        SDL_Surface *rotated = RotateSurface(surface, angle);
+
+        IMG_SavePNG(rotated, "rotated.png");
+
+        return 0;
+    }
+    
+}
+    
+int MainCutter(char *path) {
+    clock_t t = clock();
+
+    // WARNING: NEVER USE TWO ACCUMULATOR AT THE SAME TIME
+    // SOME VALUES ARE COMPUTED WITH DetectLines AND WILL CHANGE IF USE WITH
+    // ANOTHER ACCUMULATOR
+
+    // Load the surface
+    SDL_Surface *surface;
+    if (strcmp(path, "0") == 0){
+        printf("Using default image\n");
+        surface = LoadImage("../DataSample/cutter/og1rotated.png");
+    }
+    else{
+        surface = LoadImage(path);
+    }
+    if (!surface)
+        errx(1, "Could not load image");
+
+    unsigned int *accumulator = DetectLines(surface);
+
+    //PrintMat(accumulator);
+
+    // Rotate the image if necessary
+    SDL_Surface *surfaceRotated = CheckRotation(surface, accumulator);
+
+    if (surfaceRotated != NULL) {
+        unsigned int *accumulatorRotated = DetectLines(surfaceRotated);
+        unsigned int *spaceRotated =
+            DetectIntersections(surfaceRotated, accumulatorRotated);
+        CropSquares(surfaceRotated, spaceRotated);
+
+        DrawLines(surfaceRotated, accumulatorRotated, surfaceRotated->pixels);
+        DrawIntersections(surfaceRotated, spaceRotated);
+        IMG_SavePNG(surfaceRotated, "result.png");
+
+        free(spaceRotated);
+        free(accumulatorRotated);
+        SDL_FreeSurface(surfaceRotated);
+    } else {
+        unsigned int *space = DetectIntersections(surface, accumulator);
+        CropSquares(surface, space);
+
+        DrawLines(surface, accumulator, surface->pixels);
+        DrawIntersections(surface, space);
+        IMG_SavePNG(surface, "result.png");
+
+        free(space);
+    }
+
+    free(accumulator);
+    SDL_FreeSurface(surface);
+
+    t = clock() - t;
+    double time_taken = ((double)t) / CLOCKS_PER_SEC; // in seconds
+
+    printf("\n%f seconds to execute \n", time_taken);
+    return 0;
+
+}
+
+
+
+
+
 
 unsigned int *DetectLines(SDL_Surface *surface) {
     /**
@@ -183,7 +288,7 @@ SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator) {
             // computing an average angle to rotate
             int theta = i % maxTheta;
             if (theta < 90) {
-                if (theta == 0) 
+                if (theta == 0)
                     return NULL;
                 sum += theta;
                 count++;
@@ -407,7 +512,7 @@ void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
         printf("Could not crop squares\n");
         return;
     }
-    
+
     x = 0;
     y = 0;
     while (y < 9) {
@@ -419,11 +524,14 @@ void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
                 CropSurface(surface, xCoords[y][x], yCoords[y][x], squareWidth,
                             squareHeight);
 
-            char folder[40] = "DataSample/cutter/squares/";
-            char name[10] = {x + '1', '-', y + '1', '.', 'p', 'n', 'g'};
+            char name[] = {x + '1', '-', y + '1', '.', 'p', 'n', 'g', '\0'};
 
-            IMG_SavePNG(square, strcat(folder, name));
+            char *newStr = malloc((strlen(name) + 8) * sizeof(char));
+            strcpy(newStr, "squares/");
+            strcat(newStr, name);
+            IMG_SavePNG(square, newStr);
             SDL_FreeSurface(square);
+            free(newStr);
 
             x++;
         }

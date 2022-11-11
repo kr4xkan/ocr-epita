@@ -1,6 +1,8 @@
 #pragma once
 #include <SDL2/SDL_image.h>
 
+int MainCutter(char *path);
+
 // -----------------------------Lines--------------------------------------
 unsigned int *DetectLines(SDL_Surface *surface);
 void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator);

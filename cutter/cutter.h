@@ -10,8 +10,9 @@ unsigned int FindMinPeak(unsigned int *accumulator, int accumulatorSize);
 void FilterLines(unsigned int *accumulator, int accumulatorSize);
 int CheckPeak(unsigned int *accumulator, int accumulatorSize, int i,
               unsigned int val);
-int AlreadyExist(int theta, int rho, unsigned int rhoValues[],
-                 unsigned int thetaValues[], size_t len, int maxGap);
+int AlreadyExist(int theta, int rho, unsigned int peak, unsigned int *rhoValues,
+                 unsigned int *thetaValues, unsigned int *peakValues, 
+                 size_t len, int maxGap, unsigned int *accumulator);
 
 // -----------------------------Rotation--------------------------------------
 SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator);

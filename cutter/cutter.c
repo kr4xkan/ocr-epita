@@ -22,11 +22,13 @@ int accumulatorSize;
 int maxDist;
 unsigned int minPeak;
 
+
 double cosArray[maxTheta];
 double sinArray[maxTheta];
 
 
 int main(int argc, char **argv) {
+    printf("\n");
     if (argc < 2) {
         errx(1, "Usage: ./cutter --cut|--rotate");
     }
@@ -38,6 +40,7 @@ int main(int argc, char **argv) {
                     "./cutter --cut original/image_01.jpeg");
         }
         return MainCutter(argv[2]);
+
     } 
 
     else if (strcmp(argv[1], "--rotate") == 0){
@@ -57,6 +60,9 @@ int main(int argc, char **argv) {
         IMG_SavePNG(rotated, "rotated.png");
 
         return 0;
+    }
+    else{
+        errx(1, "Usage: ./cutter --cut|--rotate");
     }
     
 }
@@ -100,7 +106,8 @@ int MainCutter(char *path) {
         free(spaceRotated);
         free(accumulatorRotated);
         SDL_FreeSurface(surfaceRotated);
-    } else {
+    } 
+    else {
         unsigned int *space = DetectIntersections(surface, accumulator);
         CropSquares(surface, space);
 
@@ -119,7 +126,6 @@ int MainCutter(char *path) {
 
     printf("\n%f seconds to execute \n", time_taken);
     return 0;
-
 }
 
 
@@ -165,20 +171,26 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator) {
      * accumulator Return the filled accumulator
      */
 
-    int tmp = 0;
-
     Uint8 r, g, b;
     // Cycle trhough all the pixels to find the white ones
     for (int y = 0; y < surface->h; y++) {
         for (int x = 0; x < surface->w; x++) {
 
+            /*if (x == 535 || x == 555){
+                Uint32 color = SDL_MapRGB(surface->format, 0, 0, 255);
+                SetPixelData(surface, x, y, color);
+            }*/
+
             GetPixelColor(surface, x, y, &r, &g, &b);
+            //if ((x >= 917 && x <= 930) && (r + g + b) / 3 >= minAverage) {
             if ((r + g + b) / 3 >= minAverage) {
-                tmp++;
+
+
+
                 // compute all the values of rho and theta for the given point
                 for (int theta = 0; theta < maxTheta; theta++) {
                     int rho = x * cosArray[theta] + y * sinArray[theta];
-                    if (rho > 0 && rho < maxDist) {
+                    if (rho >= 0 && rho < maxDist) {
                         accumulator[rho * maxTheta + theta]++;
                     }
                 }
@@ -206,33 +218,79 @@ void FilterLines(unsigned int *accumulator, int accumulatorSize) {
      * Remove lines that are too similar to another one
      */
 
-    unsigned int rhoValues[300];
-    unsigned int thetaValues[300];
+    size_t arraySize = 500;
+    unsigned int *rhoValues = malloc(arraySize*sizeof(unsigned int));
+    unsigned int *thetaValues = malloc(arraySize*sizeof(unsigned int));
+    unsigned int *peakValues = malloc(arraySize*sizeof(unsigned int));
+    size_t len = 0;
+
     int maxGap = sqrt(maxDist);
 
-    size_t len = 0;
+    //Removing duplicates 
     int rho = 0;
+    int theta = 0;
     for (int i = 0; i < accumulatorSize; i++) {
-        unsigned int val = accumulator[i];
 
+        unsigned int val = accumulator[i];
         if (CheckPeak(accumulator, accumulatorSize, i, val)) {
-            int theta = i % maxTheta;
-            if (!AlreadyExist(theta, rho, rhoValues, thetaValues, len,
-                              maxGap)) {
+            int state = AlreadyExist(theta, rho, val, rhoValues,
+                            thetaValues, peakValues, len, maxGap, accumulator);
+            if (state == 0) {
                 rhoValues[len] = rho;
                 thetaValues[len] = theta;
+                peakValues[len] = val;
                 len++;
-            } else {
+            }
+            else if (state == 1){
                 accumulator[i] = 0;
             }
-        } else {
+        } 
+        else {
             accumulator[i] = 0;
         }
 
-        if (i % maxTheta == 0)
+
+        theta++;
+        if (theta == maxTheta) {
+            theta = 0;
             rho++;
+        }
+
     }
     printf("%li lines detected\n", len);
+    free(rhoValues);
+    free(thetaValues);
+    free(peakValues);
+}
+
+int AlreadyExist(int theta, int rho, unsigned int peak, unsigned int *rhoValues,
+                 unsigned int *thetaValues, unsigned int *peakValues, 
+                 size_t len, int maxGap, unsigned int *accumulator) {
+    /**
+     * Check if a line is similar to an already existing one
+     * Return 1 if the line already exist, 2 if a bigger one is found, 0 else
+     */
+
+    for (size_t i = 0; i < len; i++) {
+        unsigned int iTheta = thetaValues[i];
+        unsigned int iRho = rhoValues[i];
+
+        int dTheta = abs((int)iTheta%180 - theta%180);
+        int dRho = abs((int)iRho - rho);
+
+        if ((dTheta <= 10 || dTheta >= 170) && dRho <= maxGap) {
+            // if two lines are similar keep the biggest one
+            if (peak > peakValues[i]){
+                accumulator[iRho*maxTheta + iTheta] = 0;
+                peakValues[i] = peak;
+                thetaValues[i] = theta;
+                rhoValues[i] = rho;
+                return 2;
+            }
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int CheckPeak(unsigned int *accumulator, int accumulatorSize, int i,
@@ -254,22 +312,6 @@ int CheckPeak(unsigned int *accumulator, int accumulatorSize, int i,
     return 1;
 }
 
-int AlreadyExist(int theta, int rho, unsigned int rhoValues[],
-                 unsigned int thetaValues[], size_t len, int maxGap) {
-    /**
-     * Check if a line is similar to an already existing one
-     * Return 1 if the line already exist, 0 else
-     */
-
-    for (size_t i = 0; i < len; i++) {
-        int dTheta = abs((int)thetaValues[i]%180 - theta%180);
-        int dRho = abs((int)rhoValues[i] - rho);
-        if ((dTheta <= 10 || dTheta >= 170) && dRho <= maxGap) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator) {
     /**
@@ -367,6 +409,9 @@ SDL_Surface *RotateSurface(SDL_Surface *surface, float angle) {
     return dest;
 }
 
+
+
+
 unsigned int *DetectIntersections(SDL_Surface *surface,
                                   unsigned int *accumulator) {
     /**
@@ -387,20 +432,26 @@ unsigned int *DetectIntersections(SDL_Surface *surface,
     for (int i = 0; i < accumulatorSize; i++) {
 
         if (accumulator[i] != 0) {
-            // convert the point in the accumulator space in a line in the
-            // normal space
-            // to do so: compute 2 point of the line and draw it
-            double thetaRad = theta * pi / 180;
-            double a = cos(thetaRad);
-            double b = sin(thetaRad);
-            int x0 = a * rho;
-            int y0 = b * rho;
-            int x1 = x0 + 2000 * (-b);
-            int y1 = y0 + 2000 * a;
-            int x2 = x0 - 2000 * (-b);
-            int y2 = y0 - 2000 * a;
+            //remove some lines that are not vertical nor horizontal
+            if (theta % 90 > 5 && theta % 90 < 85){
+                accumulator[i] = 0;
+            }
+            else{
+                // convert the point in the accumulator space in a line in the
+                // normal space
+                // to do so: compute 2 point of the line and draw it
+                double thetaRad = theta * pi / 180;
+                double a = cos(thetaRad);
+                double b = sin(thetaRad);
+                int x0 = a * rho;
+                int y0 = b * rho;
+                int x1 = x0 + 2000 * (-b);
+                int y1 = y0 + 2000 * a;
+                int x2 = x0 - 2000 * (-b);
+                int y2 = y0 - 2000 * a;
 
-            ComputeLine(normalSpace, w, h, x1, y1, x2, y2);
+                ComputeLine(normalSpace, w, h, x1, y1, x2, y2);
+            }
         }
 
         theta++;
@@ -564,7 +615,7 @@ void PrintMat(unsigned int *accumulator) {
             //       if (val >= accumulator[i-1] && val >= accumulator[i+1] &&
             //       val >= accumulator[i-maxTheta] && val >=
             //       accumulator[i+maxTheta]){
-            printf("\033[1;31m");
+            printf("\033[0;31m");
             printf("%3u ", accumulator[i]);
             //     }
         } else if (val >= 1) {
@@ -582,9 +633,9 @@ void DrawLines(SDL_Surface *surface, unsigned int *accumulator, int *pixels) {
     Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
 
     int rho = 0;
+    int theta = 0;
     for (int i = 0; i < accumulatorSize; i++) {
 
-        int theta = i % maxTheta;
 
         unsigned int val = accumulator[i];
         // A peak has its value greater than minPeak and gretaer or equal than
@@ -594,7 +645,6 @@ void DrawLines(SDL_Surface *surface, unsigned int *accumulator, int *pixels) {
         // accumulator[i+1] && val >= accumulator[i-maxTheta] && val >=
         // accumulator[i+maxTheta])
         if (val >= minPeak) {
-
             // Drawing the corresponding lines
             double thetaRad = theta * pi / 180;
             double a = cos(thetaRad);
@@ -609,8 +659,11 @@ void DrawLines(SDL_Surface *surface, unsigned int *accumulator, int *pixels) {
             DrawLine(pixels, surface->w, surface->h, x1, y1, x2, y2, color);
         }
 
-        if (i % maxTheta == 0)
+        theta++;
+        if (theta == maxTheta){
+            theta = 0;
             rho++;
+        }
     }
 }
 

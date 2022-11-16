@@ -184,9 +184,6 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator) {
             GetPixelColor(surface, x, y, &r, &g, &b);
             //if ((x >= 917 && x <= 930) && (r + g + b) / 3 >= minAverage) {
             if ((r + g + b) / 3 >= minAverage) {
-
-
-
                 // compute all the values of rho and theta for the given point
                 for (int theta = 0; theta < maxTheta; theta++) {
                     int rho = x * cosArray[theta] + y * sinArray[theta];
@@ -232,13 +229,10 @@ void FilterLines(unsigned int *accumulator, int accumulatorSize) {
         if (CheckPeak(accumulator, accumulatorSize, i, val)) {
             Line line = {theta, rho, val, i};
 
-            int state = AlreadyExist(lines, line, len, maxGap, accumulator);
-            if (state == 0) {
+            
+            if (!AlreadyExist(lines, line, len, maxGap, accumulator)) {
                 lines[len] = line;
                 len++;
-            }
-            else if (state == 1){
-                accumulator[i] = 0;
             }
         } 
         else {
@@ -274,7 +268,9 @@ int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
             if (line.value > iLine.value){
                 accumulator[iLine.accuPos] = 0;
                 lines[i] = line;
-                return 2;
+            }
+            else{
+                accumulator[line.accuPos] = 0;
             }
             return 1;
         }

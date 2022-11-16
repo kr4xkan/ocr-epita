@@ -218,10 +218,7 @@ void FilterLines(unsigned int *accumulator, int accumulatorSize) {
      * Remove lines that are too similar to another one
      */
 
-    size_t arraySize = 500;
-    unsigned int *rhoValues = malloc(arraySize*sizeof(unsigned int));
-    unsigned int *thetaValues = malloc(arraySize*sizeof(unsigned int));
-    unsigned int *peakValues = malloc(arraySize*sizeof(unsigned int));
+    Line *lines = malloc(500*sizeof(Line));
     size_t len = 0;
 
     int maxGap = sqrt(maxDist);
@@ -233,12 +230,11 @@ void FilterLines(unsigned int *accumulator, int accumulatorSize) {
 
         unsigned int val = accumulator[i];
         if (CheckPeak(accumulator, accumulatorSize, i, val)) {
-            int state = AlreadyExist(theta, rho, val, rhoValues,
-                            thetaValues, peakValues, len, maxGap, accumulator);
+            Line line = {theta, rho, val, i};
+
+            int state = AlreadyExist(lines, line, len, maxGap, accumulator);
             if (state == 0) {
-                rhoValues[len] = rho;
-                thetaValues[len] = theta;
-                peakValues[len] = val;
+                lines[len] = line;
                 len++;
             }
             else if (state == 1){
@@ -249,7 +245,6 @@ void FilterLines(unsigned int *accumulator, int accumulatorSize) {
             accumulator[i] = 0;
         }
 
-
         theta++;
         if (theta == maxTheta) {
             theta = 0;
@@ -258,33 +253,27 @@ void FilterLines(unsigned int *accumulator, int accumulatorSize) {
 
     }
     printf("%li lines detected\n", len);
-    free(rhoValues);
-    free(thetaValues);
-    free(peakValues);
+    free(lines);
 }
 
-int AlreadyExist(int theta, int rho, unsigned int peak, unsigned int *rhoValues,
-                 unsigned int *thetaValues, unsigned int *peakValues, 
-                 size_t len, int maxGap, unsigned int *accumulator) {
+int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
+        unsigned int *accumulator) {
     /**
      * Check if a line is similar to an already existing one
      * Return 1 if the line already exist, 2 if a bigger one is found, 0 else
      */
 
     for (size_t i = 0; i < len; i++) {
-        unsigned int iTheta = thetaValues[i];
-        unsigned int iRho = rhoValues[i];
+        Line iLine = lines[i];
 
-        int dTheta = abs((int)iTheta%180 - theta%180);
-        int dRho = abs((int)iRho - rho);
+        int dTheta = abs((int)(iLine.theta%180) - (int)(line.theta%180));
+        int dRho = abs((int)(iLine.rho) - (int)(line.rho));
 
         if ((dTheta <= 10 || dTheta >= 170) && dRho <= maxGap) {
             // if two lines are similar keep the biggest one
-            if (peak > peakValues[i]){
-                accumulator[iRho*maxTheta + iTheta] = 0;
-                peakValues[i] = peak;
-                thetaValues[i] = theta;
-                rhoValues[i] = rho;
+            if (line.value > iLine.value){
+                accumulator[iLine.accuPos] = 0;
+                lines[i] = line;
                 return 2;
             }
             return 1;

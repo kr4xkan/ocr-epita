@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.38.2 -->
+<interface>
+  <requires lib="gtk+" version="3.24"/>
+  <object class="GtkWindow" id="org.pc2.ocr">
+    <property name="can-focus">False</property>
+    <property name="title" translatable="yes">PC2's OCR</property>
+    <child>
+      <object class="GtkImage" id="img">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="double-buffered">False</property>
+      </object>
+    </child>
+  </object>
+</interface>

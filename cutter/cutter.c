@@ -177,12 +177,8 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator) {
         for (int x = 0; x < surface->w; x++) {
 
             GetPixelColor(surface, x, y, &r, &g, &b);
-            //if ((x >= 917 && x <= 930) && (r + g + b) / 3 >= minAverage) {
             if ((r + g + b) / 3 >= minAverage) {
-<<<<<<< HEAD
-
-=======
->>>>>>> cutter
+                
                 // compute all the values of rho and theta for the given point
                 for (int theta = 0; theta < maxTheta; theta++) {
                     int rho = x * cosArray[theta] + y * sinArray[theta];
@@ -541,32 +537,58 @@ void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
     }
 
 
+    char easyCrop = 1;
+    int average = 0;
     // Checking if all 100 intersections have been found
-    if (!(xCoords[9][9] != 0 && xCoords[9][10] == 0) ||
-        !(yCoords[9][9] != 0 && yCoords[9][10] == 0)) {
-        printf("Could not crop squares\n");
-        return;
+    if ((xCoords[9][9] != 0 && xCoords[9][10] == 0) &&
+        (yCoords[9][9] != 0 && yCoords[9][10] == 0)) {
+        easyCrop = 0;
+        unsigned int sum = 0;
+        unsigned int count = 0;
+        x = 1;
+        y = 1;
+        while (xCoords[y][0] != 0) {
+            while (xCoords[y][x] != 0) {
+                sum += xCoords[y][x] - xCoords[y][x-1];
+                count++;
+                x++;
+            }
+            y++;
+            x = 1;
+        }
+        average = sum / count;
     }
+
 
     x = 0;
     y = 0;
-    while (y < 9) {
-        while (x < 9) {
+    while (xCoords[y+1][0] != 0) {
+        while (xCoords[y][x+1] != 0) {
 
-            int squareWidth = xCoords[y][x + 1] - xCoords[y][x];
-            int squareHeight = yCoords[y + 1][x] - yCoords[y][x];
-            SDL_Surface *square =
-                CropSurface(surface, xCoords[y][x], yCoords[y][x], squareWidth,
-                            squareHeight);
+            char canCrop = 0;
+            int squareWidth = xCoords[y][x+1] - xCoords[y][x];
+            int squareHeight = yCoords[y+1][x] - yCoords[y][x];
+            if (!easyCrop){
+                if (abs(squareWidth - average) < 15 && abs(squareHeight - average) < 15){
+                    canCrop = 1;
+                }
 
-            char name[] = {x + '1', '-', y + '1', '.', 'p', 'n', 'g', '\0'};
+            }
+            if (easyCrop || canCrop){
+                SDL_Surface *square =
+                    CropSurface(surface, xCoords[y][x], yCoords[y][x], squareWidth,
+                                squareHeight);
 
-            char *newStr = malloc((strlen(name) + 8) * sizeof(char));
-            strcpy(newStr, "squares/");
-            strcat(newStr, name);
-            IMG_SavePNG(square, newStr);
-            SDL_FreeSurface(square);
-            free(newStr);
+                char name[] = {x + '1', '-', y + '1', '.', 'p', 'n', 'g', '\0'};
+
+                char *newStr = malloc((strlen(name) + 15) * sizeof(char));
+                strcpy(newStr, "squares/");
+                strcat(newStr, name);
+                IMG_SavePNG(square, newStr);
+                SDL_FreeSurface(square);
+                free(newStr);
+
+            }
 
             x++;
         }
@@ -574,6 +596,7 @@ void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
         x = 0;
     }
     printf("All squares have been cropped\n");
+
 }
 
 SDL_Surface *CropSurface(SDL_Surface *surface, int x, int y, int width,

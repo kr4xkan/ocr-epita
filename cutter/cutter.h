@@ -41,10 +41,10 @@ void ComputeLine(unsigned int *linesArray, long int w, long int h, long int x1,
 
 
 // -----------------------------Crop--------------------------------------
-typedef struct Intersections{
+typedef struct Intersection{
     unsigned int x;
     unsigned int y;
-}Intersections;
+}Intersection;
 void CropSquares(SDL_Surface *surface, unsigned int *normalSpace);
 SDL_Surface *CropSurface(SDL_Surface *surface, int x, int y, int width,
                          int height);

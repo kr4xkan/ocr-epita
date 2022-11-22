@@ -24,9 +24,13 @@ typedef struct Line{
 int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
         unsigned int *accumulator);
 
+
+
 // -----------------------------Rotation--------------------------------------
 SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator);
 SDL_Surface *RotateSurface(SDL_Surface *origine, float angle);
+
+
 
 // -----------------------------Intersections--------------------------------------
 unsigned int *DetectIntersections(SDL_Surface *surface,
@@ -34,10 +38,18 @@ unsigned int *DetectIntersections(SDL_Surface *surface,
 void ComputeLine(unsigned int *linesArray, long int w, long int h, long int x1,
                  long int y1, long int x2, long int y2);
 
+
+
 // -----------------------------Crop--------------------------------------
+typedef struct Intersections{
+    unsigned int x;
+    unsigned int y;
+}Intersections;
 void CropSquares(SDL_Surface *surface, unsigned int *normalSpace);
 SDL_Surface *CropSurface(SDL_Surface *surface, int x, int y, int width,
                          int height);
+
+
 
 // -----------------------------UTILS-------------------------------------
 void DrawIntersections(SDL_Surface *surface, unsigned int *accumulator);

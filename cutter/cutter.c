@@ -16,7 +16,7 @@
 int minAverage = 200;
 
 // minPeak = maxPeak (biggest line) * ratio
-float ratio = 0.50;
+float ratio = 0.33;
 
 int accumulatorSize;
 int maxDist;
@@ -176,16 +176,9 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator) {
     for (int y = 0; y < surface->h; y++) {
         for (int x = 0; x < surface->w; x++) {
 
-            /*if (x == 535 || x == 555){
-                Uint32 color = SDL_MapRGB(surface->format, 0, 0, 255);
-                SetPixelData(surface, x, y, color);
-            }*/
-
             GetPixelColor(surface, x, y, &r, &g, &b);
             //if ((x >= 917 && x <= 930) && (r + g + b) / 3 >= minAverage) {
             if ((r + g + b) / 3 >= minAverage) {
-
-
 
                 // compute all the values of rho and theta for the given point
                 for (int theta = 0; theta < maxTheta; theta++) {
@@ -209,7 +202,6 @@ unsigned int FindMinPeak(unsigned int *accumulator, int accumulatorSize) {
         if (accumulator[i] > maxPeak)
             maxPeak = accumulator[i];
     }
-
     return maxPeak * ratio;
 }
 
@@ -252,7 +244,7 @@ void FilterLines(unsigned int *accumulator, int accumulatorSize) {
         }
 
     }
-    printf("%li lines detected\n", len);
+    //printf("%li lines detected\n", len);
     free(lines);
 }
 
@@ -422,7 +414,7 @@ unsigned int *DetectIntersections(SDL_Surface *surface,
 
         if (accumulator[i] != 0) {
             //remove some lines that are not vertical nor horizontal
-            if (theta % 90 > 5 && theta % 90 < 85){
+            if (theta % 90 >= 2 && theta % 90 <= 88){
                 accumulator[i] = 0;
             }
             else{
@@ -434,10 +426,10 @@ unsigned int *DetectIntersections(SDL_Surface *surface,
                 double b = sin(thetaRad);
                 int x0 = a * rho;
                 int y0 = b * rho;
-                int x1 = x0 + 2000 * (-b);
-                int y1 = y0 + 2000 * a;
-                int x2 = x0 - 2000 * (-b);
-                int y2 = y0 - 2000 * a;
+                int x1 = x0 + 3000 * (-b);
+                int y1 = y0 + 3000 * a;
+                int x2 = x0 - 3000 * (-b);
+                int y2 = y0 - 3000 * a;
 
                 ComputeLine(normalSpace, w, h, x1, y1, x2, y2);
             }
@@ -517,8 +509,9 @@ void ComputeLine(unsigned int *normalSpace, long int w, long int h, long int x1,
 void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
     int w = surface->w, h = surface->h;
 
-    unsigned int xCoords[20][20] = {};
-    unsigned int yCoords[20][20] = {};
+
+    unsigned int xCoords[80][80] = {};
+    unsigned int yCoords[80][80] = {};
     int arrayX = 0, arrayY = -1;
 
     unsigned int x = w + 1;
@@ -589,7 +582,7 @@ SDL_Surface *CropSurface(SDL_Surface *surface, int x, int y, int width,
         surface->format->Amask);
 
     SDL_Rect rect = {x, y, width, height};
-    SDL_BlitSurface(surface, &rect, newSurface, 0);
+    SDL_BlitSurface(surface, &rect, newSurface, NULL);
     return newSurface;
 }
 
@@ -630,20 +623,17 @@ void DrawLines(SDL_Surface *surface, unsigned int *accumulator, int *pixels) {
         // A peak has its value greater than minPeak and gretaer or equal than
         // its 4 closest neighbours first compare to the peak then left / right
         // / top / bottom
-        // if (val >= minPeak && val >= accumulator[i-1] && val >=
-        // accumulator[i+1] && val >= accumulator[i-maxTheta] && val >=
-        // accumulator[i+maxTheta])
-        if (val >= minPeak) {
+        if (val != 0) {
             // Drawing the corresponding lines
             double thetaRad = theta * pi / 180;
             double a = cos(thetaRad);
             double b = sin(thetaRad);
             int x0 = a * rho;
             int y0 = b * rho;
-            int x1 = x0 + 2000 * (-b);
-            int y1 = y0 + 2000 * a;
-            int x2 = x0 - 2000 * (-b);
-            int y2 = y0 - 2000 * a;
+            int x1 = x0 + 3000 * (-b);
+            int y1 = y0 + 3000 * a;
+            int x2 = x0 - 3000 * (-b);
+            int y2 = y0 - 3000 * a;
 
             DrawLine(pixels, surface->w, surface->h, x1, y1, x2, y2, color);
         }

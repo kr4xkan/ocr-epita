@@ -2,8 +2,6 @@
 #include <SDL2/SDL_image.h>
 
 int MainCutter(char *path);
-
-
     
 
 
@@ -33,21 +31,10 @@ SDL_Surface *RotateSurface(SDL_Surface *origine, float angle);
 
 
 // -----------------------------Intersections--------------------------------------
-unsigned int *DetectIntersections(SDL_Surface *surface,
-                                  unsigned int *accumulator);
+unsigned int *DetectIntersections(SDL_Surface *surface, 
+                                        unsigned int *accumulator);
 void ComputeLine(unsigned int *linesArray, long int w, long int h, long int x1,
                  long int y1, long int x2, long int y2);
-
-
-
-// -----------------------------Crop--------------------------------------
-typedef struct Intersection{
-    unsigned int x;
-    unsigned int y;
-}Intersection;
-void CropSquares(SDL_Surface *surface, unsigned int *normalSpace);
-SDL_Surface *CropSurface(SDL_Surface *surface, int x, int y, int width,
-                         int height);
 
 
 

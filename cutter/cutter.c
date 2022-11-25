@@ -5,6 +5,7 @@
 
 #include "../utils.h"
 #include "cutter.h"
+#include "crop-manager.h"
 
 #include <string.h>
 #include <time.h>
@@ -504,112 +505,7 @@ void ComputeLine(unsigned int *normalSpace, long int w, long int h, long int x1,
     }
 }
 
-void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
-    int w = surface->w, h = surface->h;
 
-
-    unsigned int xCoords[80][80] = {};
-    unsigned int yCoords[80][80] = {};
-    int arrayX = 0, arrayY = -1;
-
-    unsigned int x = w + 1;
-
-    int y = 0;
-    for (int i = 0; i < w * h; i++) {
-        unsigned int val = normalSpace[i];
-        if (val >= 2) {
-            unsigned int x0 = i % w;
-            if (x0 < x) {
-                arrayY++;
-                arrayX = 0;
-            } else {
-                arrayX++;
-            }
-            x = x0;
-
-            xCoords[arrayY][arrayX] = x;
-            yCoords[arrayY][arrayX] = y;
-        }
-
-        if (i % w == 0) {
-            y++;
-        }
-    }
-
-
-    char easyCrop = 1;
-    int average = 0;
-    // Checking if all 100 intersections have been found
-    if ((xCoords[9][9] != 0 && xCoords[9][10] == 0) &&
-        (yCoords[9][9] != 0 && yCoords[9][10] == 0)) {
-        easyCrop = 0;
-        unsigned int sum = 0;
-        unsigned int count = 0;
-        x = 1;
-        y = 1;
-        while (xCoords[y][0] != 0) {
-            while (xCoords[y][x] != 0) {
-                sum += xCoords[y][x] - xCoords[y][x-1];
-                count++;
-                x++;
-            }
-            y++;
-            x = 1;
-        }
-        average = sum / count;
-    }
-
-
-    x = 0;
-    y = 0;
-    while (xCoords[y+1][0] != 0) {
-        while (xCoords[y][x+1] != 0) {
-
-            char canCrop = 0;
-            int squareWidth = xCoords[y][x+1] - xCoords[y][x];
-            int squareHeight = yCoords[y+1][x] - yCoords[y][x];
-            if (!easyCrop){
-                if (abs(squareWidth - average) < 15 && abs(squareHeight - average) < 15){
-                    canCrop = 1;
-                }
-
-            }
-            if (easyCrop || canCrop){
-                SDL_Surface *square =
-                    CropSurface(surface, xCoords[y][x], yCoords[y][x], squareWidth,
-                                squareHeight);
-
-                char name[] = {x + '1', '-', y + '1', '.', 'p', 'n', 'g', '\0'};
-
-                char *newStr = malloc((strlen(name) + 15) * sizeof(char));
-                strcpy(newStr, "squares/");
-                strcat(newStr, name);
-                IMG_SavePNG(square, newStr);
-                SDL_FreeSurface(square);
-                free(newStr);
-
-            }
-
-            x++;
-        }
-        y++;
-        x = 0;
-    }
-    printf("All squares have been cropped\n");
-
-}
-
-SDL_Surface *CropSurface(SDL_Surface *surface, int x, int y, int width,
-                         int height) {
-    SDL_Surface *newSurface = SDL_CreateRGBSurface(
-        surface->flags, width, height, surface->format->BitsPerPixel,
-        surface->format->Rmask, surface->format->Gmask, surface->format->Bmask,
-        surface->format->Amask);
-
-    SDL_Rect rect = {x, y, width, height};
-    SDL_BlitSurface(surface, &rect, newSurface, NULL);
-    return newSurface;
-}
 
 //----------------------------UTILS--------------------------
 void PrintMat(unsigned int *accumulator) {
@@ -729,14 +625,14 @@ void DrawLine(int *pixels, long int w, long int h, long int x1, long int y1,
     }
 }
 
-void DrawIntersections(SDL_Surface *surface, unsigned int *accumulator) {
+void DrawIntersections(SDL_Surface *surface, unsigned int *space) {
     int w = surface->w;
     int h = surface->h;
 
     Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
     int x = 0, y = 0;
     for (long i = 0; i < w * h; i++) {
-        unsigned int val = accumulator[i];
+        unsigned int val = space[i];
 
         if (val >= 2) {
             SetPixelData(surface, x, y, color);

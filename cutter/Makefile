@@ -5,7 +5,7 @@ CFLAGS = -Wall -Wextra -std=c99 -g \
 LDFLAGS =
 LDLIBS = -lm $(shell pkg-config --libs sdl2 SDL2_image)
 
-SRC = cutter.c ../utils.c
+SRC = cutter.c crop-manager.c ../utils.c
 OBJ = ${SRC:.c=.o}
 DEP = ${SRC:.c=.d}
 

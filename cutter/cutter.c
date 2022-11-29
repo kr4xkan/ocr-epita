@@ -87,15 +87,26 @@ int MainCutter(char *path) {
     if (!surface)
         errx(1, "Could not load image");
 
+
     unsigned int *accumulator = DetectLines(surface);
-
     //PrintMat(accumulator);
-
-    // Rotate the image if necessary
     SDL_Surface *surfaceRotated = CheckRotation(surface, accumulator);
 
-    if (surfaceRotated != NULL) {
+    if (surfaceRotated == NULL) {
+        RemoveDuplicates(accumulator, accumulatorSize);
+        unsigned int *space = DetectIntersections(surface, accumulator);
+        CropSquares(surface, space);
+
+        DrawLines(surface, accumulator, surface->pixels);
+        DrawIntersections(surface, space);
+        IMG_SavePNG(surface, "result.png");
+
+        free(space);
+    }
+    else{
         unsigned int *accumulatorRotated = DetectLines(surfaceRotated);
+        RemoveDuplicates(accumulatorRotated, accumulatorSize);
+
         unsigned int *spaceRotated =
             DetectIntersections(surfaceRotated, accumulatorRotated);
         CropSquares(surfaceRotated, spaceRotated);
@@ -108,16 +119,6 @@ int MainCutter(char *path) {
         free(accumulatorRotated);
         SDL_FreeSurface(surfaceRotated);
     } 
-    else {
-        unsigned int *space = DetectIntersections(surface, accumulator);
-        CropSquares(surface, space);
-
-        DrawLines(surface, accumulator, surface->pixels);
-        DrawIntersections(surface, space);
-        IMG_SavePNG(surface, "result.png");
-
-        free(space);
-    }
 
     free(accumulator);
     SDL_FreeSurface(surface);
@@ -161,7 +162,6 @@ unsigned int *DetectLines(SDL_Surface *surface) {
 
     FillAcumulator(surface, accumulator);
     minPeak = FindMinPeak(accumulator, accumulatorSize);
-    FilterLines(accumulator, accumulatorSize);
 
     return accumulator;
 }
@@ -205,7 +205,7 @@ unsigned int FindMinPeak(unsigned int *accumulator, int accumulatorSize) {
     return maxPeak * ratio;
 }
 
-void FilterLines(unsigned int *accumulator, int accumulatorSize) {
+void RemoveDuplicates(unsigned int *accumulator, int accumulatorSize) {
     /**
      * Remove lines that are too similar to another one
      */
@@ -241,7 +241,7 @@ void FilterLines(unsigned int *accumulator, int accumulatorSize) {
         }
 
     }
-    //printf("%li lines detected\n", len);
+    FilterLines(accumulator, accumulatorSize, lines, len);
     free(lines);
 }
 
@@ -291,6 +291,39 @@ int CheckPeak(unsigned int *accumulator, int accumulatorSize, int i,
         return 0;
     return 1;
 }
+
+
+void FilterLines(unsigned int *accumulator, int accumulatorSize,
+                                                    Line* lines, size_t len){
+
+    unsigned int *histo = calloc(accumulatorSize/maxTheta, sizeof(unsigned int));
+    for (size_t i = 0; i< len; i++){
+        Line line = lines[i];
+        if (line.theta % 90 >= 2 && line.theta % 90 <= 88)
+            accumulator[line.accuPos] = 0;
+        else
+            histo[line.rho] += 1;
+    }
+
+    size_t current = 0;
+    size_t range = 5;
+    for (size_t i = 0; i <= range*2; i++)
+        current += histo[i];
+    
+    size_t gap = range;
+    size_t max = current;
+    for (size_t i = range+2; i < accumulatorSize/maxTheta; i++){
+        current -= histo[i-range-1];
+        current += histo[i+range];
+        if (current > max){
+            gap = i;
+            max = current;
+        }
+    }
+    printf("%lu\n", gap);
+    free(histo);
+}
+
 
 
 SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator) {

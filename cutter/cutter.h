@@ -6,21 +6,23 @@ int MainCutter(char *path);
 
 
 // -----------------------------Lines--------------------------------------
-unsigned int *DetectLines(SDL_Surface *surface);
-void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator);
-unsigned int FindMinPeak(unsigned int *accumulator, int accumulatorSize);
-void FilterLines(unsigned int *accumulator, int accumulatorSize);
-int CheckPeak(unsigned int *accumulator, int accumulatorSize, int i,
-              unsigned int val);
-
 typedef struct Line{
     unsigned int theta; 
     unsigned int rho; 
     unsigned int value; 
     unsigned int accuPos; 
 } Line;
+
+unsigned int *DetectLines(SDL_Surface *surface);
+void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator);
+unsigned int FindMinPeak(unsigned int *accumulator, int accumulatorSize);
+void RemoveDuplicates(unsigned int *accumulator, int accumulatorSize);
+int CheckPeak(unsigned int *accumulator, int accumulatorSize, int i,
+        unsigned int val);
 int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
         unsigned int *accumulator);
+void FilterLines(unsigned int *accumulator, int accumulatorSize, 
+        Line* lines, size_t len);
 
 
 

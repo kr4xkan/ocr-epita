@@ -11,6 +11,20 @@
 #include "matrix.h"
 #include "neural-net.h"
 
+void free_network(NeuralNetwork* nn) {
+    for (szt i = 1; i < nn->layer_count; i++) {
+        free_layer(&nn->layers[i]);
+    }
+    free(nn->layers);
+}
+
+void free_layer(Layer* layer) {
+    free_matrix(&layer->Z);
+    free_matrix(&layer->A);
+    free_matrix(&layer->W);
+    free_matrix(&layer->B);
+}
+
 Layer new_layer(
         enum ActivationFunction activation,
         size_t num_nodes,
@@ -20,11 +34,10 @@ Layer new_layer(
     l.size = num_nodes;
     l.activation = activation;
     l.A = new_matrix(num_nodes, 1);
-    l.Z = new_matrix(num_nodes, 1);
     if (prev_num_nodes != 0) {
-        printf("Layer %zu\n", num_nodes);
+        l.Z = new_matrix(num_nodes, 1);
         l.B = new_random_matrix(num_nodes, 1);
-        l.W = new_random_matrix(prev_num_nodes, num_nodes);
+        l.W = new_random_matrix(num_nodes, prev_num_nodes);
     }
     return l;
 }
@@ -32,11 +45,12 @@ Layer new_layer(
 NeuralNetwork new_network(int argc, char** argv) {
     NeuralNetwork nn;
     nn.layer_count = 3;
-    nn.learning_rate = 0.01;
+    nn.learning_rate = 0.005;
     nn.layers = calloc(nn.layer_count, sizeof(Layer));
     nn.layers[0] = new_layer(ReLU, 784, 0);
     nn.layers[1] = new_layer(ReLU, 10, 784);
     nn.layers[2] = new_layer(SoftMax, 10, 10);
+    free(nn.layers[0].A.v);
     return nn;
 }
 
@@ -59,7 +73,7 @@ void forward_pass(NeuralNetwork* nn) {
     }
 }
 
-void backward_pass(NeuralNetwork* nn, Matrix expected) {
+double backward_pass(NeuralNetwork* nn, Matrix expected) {
     Matrix dZ2 = new_matrix(nn->layers[2].Z.n,nn->layers[2].Z.p);
     Matrix dW2 = new_matrix(nn->layers[2].W.n,nn->layers[2].W.p);
     Matrix dB2 = new_matrix(nn->layers[2].B.n,nn->layers[2].B.p);
@@ -81,12 +95,14 @@ void backward_pass(NeuralNetwork* nn, Matrix expected) {
     multiply_scalar(dW2, nn->learning_rate, dW2);
     multiply_scalar(dW1, nn->learning_rate, dW1);
 
-    add(nn->layers[2].W, dW2, nn->layers[2].W);
-    add(nn->layers[1].W, dW1, nn->layers[1].W);
-    double sumDZ2 = sum(dZ2) / (dZ2.n * dZ2.p);
-    double sumDZ1 = sum(dZ1) / (dZ1.n * dZ1.p);
+    sub(nn->layers[2].W, dW2, nn->layers[2].W);
+    sub(nn->layers[1].W, dW1, nn->layers[1].W);
+    double sumDZ2 = -sum(dZ2) / (dZ2.n * dZ2.p);
+    double sumDZ1 = -sum(dZ1) / (dZ1.n * dZ1.p);
     add_scalar(nn->layers[2].B, sumDZ2, nn->layers[2].B);
     add_scalar(nn->layers[1].B, sumDZ1, nn->layers[1].B);
+
+    double errors = sum_abs(dZ2);
 
     free_matrix(&W2T);
     free_matrix(&A1T);
@@ -98,6 +114,8 @@ void backward_pass(NeuralNetwork* nn, Matrix expected) {
     free_matrix(&dZ1);
     free_matrix(&dW1);
     free_matrix(&dB1);
+
+    return errors;
 }
 
 int main(int argc, char **argv) {
@@ -108,39 +126,39 @@ int main(int argc, char **argv) {
         errx(1, "./neural-net <path>");
 
     NeuralNetwork nn = new_network(argc, argv);
-    SDL_Surface* surface;
-    surface = IMG_Load(argv[1]);
-    if (!surface) {
-        errx(1, "Could not load image (%s)", argv[1]);
-    }
-    int w, h;
-    w = surface->w;
-    h = surface->h;
 
-    Uint8 r, g, b;
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            GetPixelColor(surface, x, y, &r, &g, &b);
-            unsigned char average = (r + g + b) / 3;
-            nn.layers[0].A.v[x * 28 + y] = (double)average / 255;
+    szt len_dataset;
+    LabeledImage* dataset = load_dataset(argv[1], &len_dataset);
+
+    Matrix expected = new_matrix(10, 1);
+    szt prev = 0;
+    for (szt i = 0; i < 10000; i++) {
+        // Randomize array
+        for (szt i = 0; i < len_dataset - 1; i++) {
+            szt j = i + rand() / (RAND_MAX / (len_dataset - i) + 1);
+            LabeledImage t = dataset[j];
+            dataset[j] = dataset[i];
+            dataset[i] = t;
+        }
+
+        double error = 0;
+        for (szt j = 0; j < len_dataset; j++) {
+            LabeledImage img = dataset[j];
+            expected.v[prev] = 0;
+            expected.v[img.label] = 1;
+            prev = img.label;
+            nn.layers[0].A.v = img.data;
+            forward_pass(&nn);
+            error += backward_pass(&nn, expected);
+        }
+        if (i % 10 == 0) {
+            printf("[%zu] Error: %.4f\n", i, error);
+            fflush(stdout);
         }
     }
-
-    SDL_FreeSurface(surface);
-    print_pixel(nn.layers[0].A.v, 28, 28);
-    //load_image(nn.layers[0].A.v, argv[1]);
-    forward_pass(&nn);
-    printf("gang1\n");
-    fflush(stdout);
-    print_mat(nn.layers[2].W);
-    //Matrix expected = new_matrix(10, 1);
-    //expected.v[5] = 1;
-    //backward_pass(&nn, expected);
-    //print(nn.layers[2].W);
-    printf("gang2\n");
-    fflush(stdout);
-    printf("done");
-    fflush(stdout);
+    free_matrix(&expected);
+    free_network(&nn);
+    free(dataset);
     return 0;
 }
 
@@ -289,12 +307,13 @@ void setup_network(NeuralNetwork *nn, int *layers_node_count, int batch_size,
     nn->learning_rate = learning_rate;
     nn->loss = 0;
 }
+*/
 
-LabeledImage *load_dataset(char *path, size_t *len_d) {
+LabeledImage* load_dataset(char *path, szt *len_d) {
     DIR *d;
     struct dirent *dir;
     d = opendir(path);
-    size_t len = 0;
+    szt len = 0;
 
     if (!d)
         errx(1, "Could not load dataset at '%s'", path);
@@ -309,12 +328,12 @@ LabeledImage *load_dataset(char *path, size_t *len_d) {
     LabeledImage *dataset = malloc(len * sizeof(LabeledImage));
     d = opendir(path);
 
-    size_t i = 0;
+    szt i = 0;
     while ((dir = readdir(d)) != NULL) {
         if (!strcmp(strrchr(dir->d_name, '\0') - 4, ".bmp")) {
             char *tmppath =
                 malloc((strlen(path) + strlen(dir->d_name) + 5) * sizeof(char));
-            get_input(dataset[i].data,
+            load_image(dataset[i].data,
                       strcat(strcpy(tmppath, path), dir->d_name));
             dataset[i].label = dir->d_name[0] - 48;
             free(tmppath);
@@ -323,8 +342,8 @@ LabeledImage *load_dataset(char *path, size_t *len_d) {
     }
     closedir(d);
 
-    for (size_t i = 0; i < len - 1; i++) {
-        size_t j = i + rand() / (RAND_MAX / (len - i) + 1);
+    for (szt i = 0; i < len - 1; i++) {
+        szt j = i + rand() / (RAND_MAX / (len - i) + 1);
         LabeledImage t = dataset[j];
         dataset[j] = dataset[i];
         dataset[i] = t;
@@ -334,7 +353,6 @@ LabeledImage *load_dataset(char *path, size_t *len_d) {
     (*len_d) = len;
     return dataset;
 }
-*/
 
 void print_pixel(double *img, int w, int h) {
     for (int y = 0; y < h; y++) {

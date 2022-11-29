@@ -24,7 +24,6 @@ Matrix new_random_matrix(size_t n, size_t p) {
 
 void free_matrix(Matrix* m) {
     free(m->v);
-    free(m);
 }
 
 Matrix transpose(Matrix a) {
@@ -94,6 +93,16 @@ double sum(Matrix a) {
     for (size_t i = 0; i < a.n; i++) {
         for (size_t j = 0; j < a.p; j++) {
             res += a.v[i * a.p + j];
+        }
+    }
+    return res;
+}
+
+double sum_abs(Matrix a) {
+    double res = 0;
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            res += fabs(a.v[i * a.p + j]);
         }
     }
     return res;

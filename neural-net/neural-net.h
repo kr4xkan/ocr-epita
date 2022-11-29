@@ -5,11 +5,10 @@
 
 #define szt size_t
 
-struct LabeledImage {
-    float data[28 * 28];
+typedef struct LabeledImage {
+    double data[28 * 28];
     int label;
-};
-typedef struct LabeledImage LabeledImage;
+} LabeledImage;
 
 enum ActivationFunction {
     ReLU,
@@ -34,6 +33,8 @@ typedef struct NeuralNetwork {
 
 NeuralNetwork new_network(int argc, char** argv);
 Layer new_layer(enum ActivationFunction activation, size_t num_nodes, size_t prev_num_nodes);
+void free_network(NeuralNetwork* nn);
+void free_layer(Layer* layer);
 
 int guess_xor(char *input);
 

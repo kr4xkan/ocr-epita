@@ -19,6 +19,7 @@ void add(Matrix a, Matrix b, Matrix res);
 void add_scalar(Matrix a, double alpha, Matrix res);
 void sub(Matrix a, Matrix b, Matrix res);
 double sum(Matrix a);
+double sum_abs(Matrix a);
 void relu(Matrix a, Matrix res);
 Matrix relu_deriv(Matrix a);
 void softmax(Matrix a, Matrix res);

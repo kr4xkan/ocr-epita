@@ -43,7 +43,7 @@ void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
         return;
 
     // Remove the intersections that are not align with the others
-    size_t gap = FindGap(surface, coords, len);
+    size_t gap = Ouaip(surface, coords, len);
     x = 0, y = 0;
     while (coords[y*len].x){
         while (coords[y*len + x].x) {
@@ -146,7 +146,7 @@ char TryCrop(SDL_Surface *surface, size_t len, Intersection *coords,
 
 
 
-size_t FindGap(SDL_Surface *surface, Intersection *coords, size_t len){
+size_t Ouaip(SDL_Surface *surface, Intersection *coords, size_t len){
     unsigned int *histo = calloc(surface->w, sizeof(unsigned int));
     size_t x = 1, y = 1;
     while (coords[y*len].x){

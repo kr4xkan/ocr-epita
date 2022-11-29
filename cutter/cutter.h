@@ -10,19 +10,20 @@ typedef struct Line{
     unsigned int theta; 
     unsigned int rho; 
     unsigned int value; 
-    unsigned int accuPos; 
+    size_t accuPos; 
 } Line;
 
-unsigned int *DetectLines(SDL_Surface *surface);
+unsigned int *CreateAccumulator(SDL_Surface *surface);
 void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator);
-unsigned int FindMinPeak(unsigned int *accumulator, int accumulatorSize);
-void RemoveDuplicates(unsigned int *accumulator, int accumulatorSize);
-int CheckPeak(unsigned int *accumulator, int accumulatorSize, int i,
+unsigned int FindMinPeak(unsigned int *accumulator, size_t accumulatorSize);
+Line* DetectLines(unsigned int *accumulator, size_t accumulatorSize);
+int CheckPeak(unsigned int *accumulator, size_t accumulatorSize, size_t i,
         unsigned int val);
 int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
         unsigned int *accumulator);
-void FilterLines(unsigned int *accumulator, int accumulatorSize, 
-        Line* lines, size_t len);
+void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
+                                                    Line* lines);
+size_t FindGap(unsigned int *accumulator, Line *lines, size_t len);
 
 
 

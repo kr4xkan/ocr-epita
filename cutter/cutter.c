@@ -296,30 +296,100 @@ void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
     while (lines[len].accuPos != accumulatorSize+1)
         len++;
     
-    size_t gap = FindGap(accumulator, lines, len);
 
+    unsigned int *histo = calloc(3000, sizeof(unsigned int));
+
+    size_t vert = 0, hori = 0;
+    unsigned int rho1 = -1, rho2 = -1;
+
+    for (size_t i = 0; i < len; i++){
+        Line line = lines[i];
+
+        if (line.theta % 90 >= 2 && line.theta % 90 <= 88){
+            accumulator[line.accuPos] = 0;            
+            lines[i].value = 0;
+        }
+        else{
+            if(line.theta < 2){
+                vert++;
+                if (rho1 == (unsigned int)-1)
+                    rho1 = line.rho;
+                else{
+                    histo[line.rho - rho1] += 1;
+                    rho1 = line.rho;
+                }
+            }
+            else{
+                hori++;
+                if (rho2 == (unsigned int)-1)
+                    rho2 = line.rho;
+                else{
+                    histo[line.rho - rho2] += 1;
+                    rho2 = line.rho;
+                }
+            }
+        }
+    }
+
+
+
+    size_t range = 20;
+    while (range > 0 && (hori != 10 || vert != 10)){
+        size_t gap = FindGap(histo, range);
+
+        char checkVert = -1, checkHori = -1;
+        unsigned int rhoVert = -1, rhoHor = -1;
+
+        for (size_t i = 0; i < len; i++){
+            Line line = lines[i];
+
+            if (line.value != 0 && line.theta < 2){
+                if (checkVert == -1){
+                    rhoVert = line.rho;
+                    checkVert = 0;
+                }
+                else{
+                    size_t dr = line.rho - rhoVert;
+                    rhoVert = line.rho;
+                }
+            }
+            else if (line.value != 0){
+                if (checkHori == -1){
+                    rhoHor = line.rho;
+                    checkHori = 0;
+                }
+                else{
+                    size_t dr = (line.rho - rhoHor) % gap;
+                    if (dr > 10 && dr < gap-10){
+                        if (!checkHori){
+                            line.value = 0;
+                            accumulator[line.accuPos] = 0;
+                        }
+                        checkHori = 0;
+                    }
+                    else {
+                        checkHori = 1;
+                    }
+                    rhoHor = line.rho;
+                }
+            }
+        }
+        range--;
+    }
+
+    free(histo);
 }
 
 
 
-size_t FindGap(unsigned int *accumulator, Line *lines, size_t len){
-    unsigned int *histo = calloc(accumulatorSize/maxTheta, sizeof(unsigned int));
-    for (size_t i = 0; i < len; i++){
-        Line line = lines[i];
-        if (line.theta % 90 >= 2 && line.theta % 90 <= 88)
-            accumulator[line.accuPos] = 0;
-        else
-            histo[line.rho] += 1;
-    }
-
+size_t FindGap(unsigned int *histo, size_t range){
     size_t current = 0;
-    size_t range = 5;
     for (size_t i = 0; i <= range*2; i++)
         current += histo[i];
 
     size_t gap = range;
     size_t max = current;
-    for (size_t i = range+2; i < accumulatorSize/maxTheta; i++){
+    for (size_t i = range+2; i < 3000-range; i++){
         current -= histo[i-range-1];
         current += histo[i+range];
         if (current > max){
@@ -327,9 +397,6 @@ size_t FindGap(unsigned int *accumulator, Line *lines, size_t len){
             max = current;
         }
     }
-    printf("gap: %lu\n", gap);
-    free(histo);
-
     return gap;
     
 }

@@ -23,7 +23,7 @@ int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
         unsigned int *accumulator);
 void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
                                                     Line* lines);
-size_t FindGap(unsigned int *accumulator, Line *lines, size_t len);
+size_t FindGap(unsigned int *histo, size_t range);
 
 
 

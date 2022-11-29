@@ -2,6 +2,28 @@
 
 #include "stddef.h"
 
+typedef struct Matrix {
+    double* v;
+    size_t n;
+    size_t p;
+} Matrix;
+
+Matrix new_matrix(size_t n, size_t p);
+Matrix new_random_matrix(size_t n, size_t p);
+void free_matrix(Matrix* m);
+Matrix transpose(Matrix a);
+void multiply(Matrix a, Matrix b, Matrix res);
+void multiply_scalar(Matrix a, double alpha, Matrix res);
+void multiply_ew(Matrix a, Matrix b, Matrix res);
+void add(Matrix a, Matrix b, Matrix res);
+void add_scalar(Matrix a, double alpha, Matrix res);
+void sub(Matrix a, Matrix b, Matrix res);
+double sum(Matrix a);
+void relu(Matrix a, Matrix res);
+Matrix relu_deriv(Matrix a);
+void softmax(Matrix a, Matrix res);
+void print_mat(Matrix a);
+
 void test_matrix();
 
 void mat_randomize(float *mat, size_t len);

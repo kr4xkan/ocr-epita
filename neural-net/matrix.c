@@ -3,6 +3,149 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+Matrix new_matrix(size_t n, size_t p) {
+    Matrix m;
+    m.v = calloc(n*p, sizeof(double));
+    m.n = n;
+    m.p = p;
+    return m;
+}
+
+Matrix new_random_matrix(size_t n, size_t p) {
+    Matrix m;
+    m.v = malloc(n * p * sizeof(double));
+    m.n = n;
+    m.p = p;
+    for (size_t i = 0; i < n * p; i++)
+        m.v[i] = ((double)rand() / (double)RAND_MAX) * 2 - 1;
+    return m;
+}
+
+void free_matrix(Matrix* m) {
+    free(m->v);
+    free(m);
+}
+
+Matrix transpose(Matrix a) {
+    Matrix t = new_matrix(a.p, a.n);
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            t.v[j * t.p + i] = a.v[i * a.p + j];
+        }
+    }
+    return t;
+}
+
+void multiply(Matrix a, Matrix b, Matrix res) {
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < b.p; j++) {
+            double sum = 0;
+            for (size_t k = 0; k < a.p; k++) {
+                sum += a.v[i * a.p + k] * b.v[k * b.p + j];
+            }
+            res.v[i * b.p + j] = sum;
+        }
+    }
+}
+
+void multiply_ew(Matrix a, Matrix b, Matrix res) {
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            res.v[i * a.p + j] = a.v[i * a.p + j] * b.v[i * b.p + j];
+        }
+    }
+}
+
+void multiply_scalar(Matrix a, double alpha, Matrix res) {
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            res.v[i * a.p + j] = a.v[i * a.p + j] * alpha;
+        }
+    }
+}
+
+void add(Matrix a, Matrix b, Matrix res) {
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            res.v[i * a.p + j] = a.v[i * a.p + j] + b.v[i * b.p + j];
+        }
+    }
+}
+
+void add_scalar(Matrix a, double alpha, Matrix res) {
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            res.v[i * a.p + j] = a.v[i * a.p + j] + alpha;
+        }
+    }
+}
+
+void sub(Matrix a, Matrix b, Matrix res) {
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            res.v[i * a.p + j] = a.v[i * a.p + j] - b.v[i * b.p + j];
+        }
+    }
+}
+
+double sum(Matrix a) {
+    double res = 0;
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            res += a.v[i * a.p + j];
+        }
+    }
+    return res;
+}
+
+void relu(Matrix a, Matrix res) {
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            res.v[i * a.p + j] = a.v[i * a.p + j] * (a.v[i * a.p + j] > 0);
+        }
+    }
+}
+
+Matrix relu_deriv(Matrix a) {
+    Matrix res = new_matrix(a.n, a.p);
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            res.v[i * a.p + j] = a.v[i * a.p + j] > 0;
+        }
+    }
+    return res;
+}
+
+void softmax(Matrix a, Matrix res) {
+    double max = a.v[0];
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            if (a.v[i * a.p + j] > max)
+                max = a.v[i * a.p + j];
+        }
+    }
+    for (size_t j = 0; j < a.p; j++) {
+        double sum = 0;
+        for (size_t i = 0; i < a.n; i++) {
+            res.v[i * a.p + j] = expf(a.v[i * a.p + j] - max);
+            sum += res.v[i * a.p + j];
+        }
+        for (size_t i = 0; i < a.n; i++) {
+            res.v[i * a.p + j] /= sum;
+        }
+    }
+}
+
+void print_mat(Matrix a) {
+    for (size_t r = 0; r < a.n; r++) {
+        for (size_t c = 0; c < a.p; c++) {
+            printf("%9.3f", a.v[r * a.p + c]);
+        }
+        printf("\n");
+    }
+}
+
 void mat_randomize(float *mat, size_t len) {
     for (size_t i = 0; i < len; i++) {
         mat[i] = ((float)rand() / (float)RAND_MAX) * 2 - 1;
@@ -133,8 +276,14 @@ void mat_apply_dsigmoid(float *res, size_t n) {
 void mat_apply_softmax(float *res, size_t m, size_t n) {
     for (size_t c = 0; c < n; c++) {
         float sum = 0;
+        float max = res[c];
+        for (size_t r = 1; r < m; r++) {
+            if (res[r * n + c] > max) {
+                max = res[r * n + c];
+            }
+        }
         for (size_t r = 0; r < m; r++) {
-            res[r * n + c] = expf(res[r * n + c]);
+            res[r * n + c] = expf(res[r * n + c] - max);
             sum += res[r * n + c];
         }
         for (size_t r = 0; r < m; r++) {

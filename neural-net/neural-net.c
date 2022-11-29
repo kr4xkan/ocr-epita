@@ -5,221 +5,146 @@
 #include <string.h>
 #include <time.h>
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_surface.h>
+#include <SDL.h>
 
 #include "../utils.h"
 #include "matrix.h"
 #include "neural-net.h"
 
+Layer new_layer(
+        enum ActivationFunction activation,
+        size_t num_nodes,
+        size_t prev_num_nodes
+) {
+    Layer l;
+    l.size = num_nodes;
+    l.activation = activation;
+    l.A = new_matrix(num_nodes, 1);
+    l.Z = new_matrix(num_nodes, 1);
+    if (prev_num_nodes != 0) {
+        printf("Layer %zu\n", num_nodes);
+        l.B = new_random_matrix(num_nodes, 1);
+        l.W = new_random_matrix(prev_num_nodes, num_nodes);
+    }
+    return l;
+}
+
+NeuralNetwork new_network(int argc, char** argv) {
+    NeuralNetwork nn;
+    nn.layer_count = 3;
+    nn.learning_rate = 0.01;
+    nn.layers = calloc(nn.layer_count, sizeof(Layer));
+    nn.layers[0] = new_layer(ReLU, 784, 0);
+    nn.layers[1] = new_layer(ReLU, 10, 784);
+    nn.layers[2] = new_layer(SoftMax, 10, 10);
+    return nn;
+}
+
+void forward_pass(NeuralNetwork* nn) {
+    for (szt i = 1; i < nn->layer_count; i++) {
+        Layer prev = nn->layers[i - 1];
+        Layer cur = nn->layers[i];
+        multiply(cur.W, prev.A, cur.Z);
+        add(cur.Z, cur.B, cur.Z);
+        switch (cur.activation) {
+            case ReLU:
+                relu(cur.Z, cur.A);
+                break;
+            case SoftMax:
+                softmax(cur.Z, cur.A);
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+void backward_pass(NeuralNetwork* nn, Matrix expected) {
+    Matrix dZ2 = new_matrix(nn->layers[2].Z.n,nn->layers[2].Z.p);
+    Matrix dW2 = new_matrix(nn->layers[2].W.n,nn->layers[2].W.p);
+    Matrix dB2 = new_matrix(nn->layers[2].B.n,nn->layers[2].B.p);
+    Matrix dZ1 = new_matrix(nn->layers[1].Z.n,nn->layers[1].Z.p);
+    Matrix dW1 = new_matrix(nn->layers[1].W.n,nn->layers[1].W.p);
+    Matrix dB1 = new_matrix(nn->layers[1].B.n,nn->layers[1].B.p);
+
+    sub(nn->layers[2].A, expected, dZ2);
+    Matrix A1T = transpose(nn->layers[1].A);
+    multiply(dZ2, A1T, dW2);
+
+    Matrix W2T = transpose(nn->layers[2].W);
+    multiply(W2T, dZ2, dZ1);
+    Matrix dRelu = relu_deriv(nn->layers[1].Z);
+    multiply_ew(dZ1, dRelu, dZ1);
+    Matrix A0T = transpose(nn->layers[0].A);
+    multiply(dZ1, A0T, dW1);
+
+    multiply_scalar(dW2, nn->learning_rate, dW2);
+    multiply_scalar(dW1, nn->learning_rate, dW1);
+
+    add(nn->layers[2].W, dW2, nn->layers[2].W);
+    add(nn->layers[1].W, dW1, nn->layers[1].W);
+    double sumDZ2 = sum(dZ2) / (dZ2.n * dZ2.p);
+    double sumDZ1 = sum(dZ1) / (dZ1.n * dZ1.p);
+    add_scalar(nn->layers[2].B, sumDZ2, nn->layers[2].B);
+    add_scalar(nn->layers[1].B, sumDZ1, nn->layers[1].B);
+
+    free_matrix(&W2T);
+    free_matrix(&A1T);
+    free_matrix(&A0T);
+    free_matrix(&dRelu);
+    free_matrix(&dZ2);
+    free_matrix(&dW2);
+    free_matrix(&dB2);
+    free_matrix(&dZ1);
+    free_matrix(&dW1);
+    free_matrix(&dB1);
+}
+
 int main(int argc, char **argv) {
     // Initialize randomizer
     srand((unsigned int)time(NULL));
 
-    test_matrix();
+    if (argc != 2)
+        errx(1, "./neural-net <path>");
 
-    if (argc < 2) {
-        errx(1, "Usage: ./neural-net --xor|digit|guess");
+    NeuralNetwork nn = new_network(argc, argv);
+    SDL_Surface* surface;
+    surface = IMG_Load(argv[1]);
+    if (!surface) {
+        errx(1, "Could not load image (%s)", argv[1]);
+    }
+    int w, h;
+    w = surface->w;
+    h = surface->h;
+
+    Uint8 r, g, b;
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            GetPixelColor(surface, x, y, &r, &g, &b);
+            unsigned char average = (r + g + b) / 3;
+            nn.layers[0].A.v[x * 28 + y] = (double)average / 255;
+        }
     }
 
-    if (strcmp(argv[1], "--digit") == 0) {
-        errx(1, "Not yet implemented!");
-    } else if (strcmp(argv[1], "--guess") == 0) {
-        if (argc != 4) {
-            errx(1, "\nUsage: ./neural-net --guess 0|1 0|1\nExample: "
-                    "./neural-net --guess 0 1");
-        }
-        printf("%d\n", guess_xor(argv + 2));
-    } else {
-        if (argc == 3) {
-            main_xor(argv[2]);
-        } else {
-            main_xor("");
-        }
-    }
-}
-
-int guess_xor(char **input) {
-    NeuralNetwork nn;
-    load_network(&nn, "save.neural");
-
-    nn.batch_size = 1;
-
-    float *W1 = nn.weights[0];
-    float *W2 = nn.weights[1];
-    float *b1 = nn.bias[0];
-    float *b2 = nn.bias[1];
-
-    float *Z1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *A1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *Z2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
-    float *A2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
-
-    float X[2] = {atof(input[0]), atof(input[1])};
-    // FORWARD PROPAGATION
-    mat_multiply(Z1, W1, X, nn.weights_sizes[0][0], nn.weights_sizes[0][1],
-                 nn.batch_size);
-    mat_add_repeat(Z1, Z1, b1, nn.layers_node_count[1], nn.batch_size, 1);
-    mat_copy(Z1, A1, nn.layers_node_count[1] * nn.batch_size);
-
-    // mat_apply_relu(A1, network.layers_node_count[1] * network.batch_size);
-    mat_apply_sigmoid(A1, nn.layers_node_count[1] * nn.batch_size);
-
-    mat_multiply(Z2, W2, A1, nn.weights_sizes[1][0], nn.weights_sizes[1][1],
-                 nn.batch_size);
-    mat_add_repeat(Z2, Z2, b2, nn.layers_node_count[2], nn.batch_size, 1);
-    mat_copy(Z2, A2, nn.layers_node_count[2] * nn.batch_size);
-
-    // mat_apply_softmax(A2, network.layers_node_count[2], network.batch_size);
-    mat_apply_sigmoid(A2, nn.layers_node_count[2] * nn.batch_size);
-
-    return A2[0] > 0.5;
-}
-
-int main_xor(char *path) {
-    printf("XOR Neural Network\n");
-
-    FILE *outputFile;
-    outputFile = fopen("out.csv", "a");
-
-    NeuralNetwork nn;
-
-    int layers_node_count[3];
-    layers_node_count[0] = 2;
-    layers_node_count[1] = 8;
-    layers_node_count[2] = 1;
-
-    if (strlen(path) != 0) {
-        load_network(&nn, path);
-        printf("Network loaded from save\n");
-    } else {
-        int layer_count = 3;
-        float learning_rate = 0.05;
-        int batch_size = 4;
-        setup_network(&nn, layers_node_count, batch_size, learning_rate,
-                      layer_count);
-        printf("New network created\n");
-    }
-
-    float X[2 * 4] = {0, 0, 1, 1, 0, 1, 0, 1};
-    nn.layers[0].A = X;
-
-    float Y[4] = {0, 1, 1, 0};
-
-    float *W1 = nn.weights[0];
-    float *W2 = nn.weights[1];
-    float *b1 = nn.bias[0];
-    float *b2 = nn.bias[1];
-
-    float *dW1 =
-        malloc(nn.weights_sizes[0][0] * nn.weights_sizes[0][1] * sizeof(float));
-    float *db1 = malloc(nn.layers_node_count[1] * sizeof(float));
-
-    float *dW2 =
-        malloc(nn.weights_sizes[1][0] * nn.weights_sizes[1][1] * sizeof(float));
-    float *db2 = malloc(nn.layers_node_count[2] * sizeof(float));
-
-    float *A1_T =
-        malloc(nn.batch_size * nn.layers_node_count[1] * sizeof(float));
-    float *dReluZ1 =
-        malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *W2_T =
-        malloc(nn.weights_sizes[1][1] * nn.weights_sizes[1][0] * sizeof(float));
-    float *X_T = malloc(nn.batch_size * 2 * sizeof(float));
-
-    fprintf(outputFile, "epoch,training\n");
-    for (int k = 0; k < 1000001; k++) {
-        // FORWARD PROPAGATION
-        for (int i = 0; i < nn.layer_count - 1; i++) {
-            mat_multiply(nn.layers[i+1].Z, nn.weights[i], nn.layers[i].A, nn.weights_sizes[i][0], nn.weights_sizes[i][1],
-                         nn.batch_size);
-            mat_add_repeat(nn.layers[i+1].Z, nn.layers[i+1].Z, b1, nn.layers_node_count[i+1], nn.batch_size, 1);
-            mat_copy(nn.layers[i+1].Z, nn.layers[i+1].A, nn.layers_node_count[i+1] * nn.batch_size);
-
-            // mat_apply_relu(A1, network.layers_node_count[1] *
-            // network.batch_size);
-            mat_apply_sigmoid(nn.layers[i+1].A, nn.layers_node_count[i+1] * nn.batch_size);
-        }
-
-        // CALCULATE DEVIATION
-        mat_substract(nn.layers[2].DZ, nn.layers[2].A, Y, 1, nn.batch_size);
-        mat_transpose(A1_T, nn.layers[1].A, nn.layers_node_count[1], nn.batch_size);
-        mat_multiply(dW2, nn.layers[2].DZ, A1_T, nn.layers_node_count[2], nn.batch_size,
-                     nn.layers_node_count[1]);
-        mat_multiply_scalar(dW2, dW2, (float)1 / nn.batch_size,
-                            nn.layers_node_count[2], nn.layers_node_count[1]);
-        mat_sum_vector(db2, nn.layers[2].DZ, nn.layers_node_count[2], nn.batch_size);
-        mat_multiply_scalar(db2, db2, (float)nn.learning_rate/nn.batch_size, nn.layers_node_count[2], 1);
-
-        mat_copy(nn.layers[1].A, dReluZ1, nn.layers_node_count[1] * nn.batch_size);
-        // mat_apply_drelu(dReluZ1, network.layers_node_count[1] *
-        // network.batch_size);
-        mat_apply_dsigmoid(dReluZ1, nn.layers_node_count[1] * nn.batch_size);
-
-        mat_transpose(W2_T, W2, nn.weights_sizes[1][0], nn.weights_sizes[1][1]);
-
-        mat_multiply(nn.layers[1].DZ, W2_T, nn.layers[2].DZ, nn.weights_sizes[1][1],
-                     nn.weights_sizes[1][0], nn.batch_size);
-        mat_multiply_hadamard(nn.layers[1].DZ, nn.layers[1].DZ, dReluZ1, nn.layers_node_count[1],
-                              nn.batch_size);
-
-        mat_transpose(X_T, X, 2, 4);
-        mat_multiply(dW1, nn.layers[1].DZ, X_T, nn.layers_node_count[1], nn.batch_size, 2);
-        mat_multiply_scalar(dW1, dW1, (float)1 / nn.batch_size,
-                            nn.layers_node_count[1], nn.layers_node_count[0]);
-        mat_sum_vector(db1, nn.layers[1].DZ, nn.layers_node_count[1], nn.batch_size);
-        mat_multiply_scalar(db1, db1, (float)nn.learning_rate/nn.batch_size, nn.layers_node_count[1], 1);
-
-        // UPDATE INTERNAL PARAMETERS
-        mat_multiply_scalar(dW1, dW1, nn.learning_rate, nn.layers_node_count[1],
-                            nn.layers_node_count[0]);
-        mat_multiply_scalar(dW2, dW2, nn.learning_rate, nn.layers_node_count[2],
-                            nn.layers_node_count[1]);
-
-        mat_substract(W1, W1, dW1, nn.layers_node_count[1],
-                      nn.layers_node_count[0]);
-        mat_substract(W2, W2, dW2, nn.layers_node_count[2],
-                      nn.layers_node_count[1]);
-        mat_substract(b1, b1, db1, nn.layers_node_count[1], 1);
-        mat_substract(b2, b2, db2, nn.layers_node_count[2], 1);
-
-        float deviation = 0;
-        for (int i = 0; i < nn.batch_size; i++) {
-            deviation += fabsf(Y[i] - nn.layers[2].A[i]);
-        }
-        deviation /= nn.batch_size;
-        if (k % 100 == 0) {
-            printf("\rEPOCH: %7d ~> %.5f", k, deviation);
-            fflush(stdout);
-        }
-        fprintf(outputFile, "%d,%.5f\n", k, deviation);
-        fflush(outputFile);
-    }
-    printf("\n");
-
-    save_network(&nn);
-
-    free(dW1);
-    free(dW2);
-    free(A1_T);
-    free(dReluZ1);
-    free(W2_T);
-    free(X_T);
-
-    for (int i = 0; i < nn.layer_count - 1; i++) {
-        free(nn.weights[i]);
-        free(nn.bias[i]);
-    }
-
-    free(nn.weights);
-    free(nn.bias);
-    free(nn.layers);
-    fclose(outputFile);
-
+    SDL_FreeSurface(surface);
+    print_pixel(nn.layers[0].A.v, 28, 28);
+    //load_image(nn.layers[0].A.v, argv[1]);
+    forward_pass(&nn);
+    printf("gang1\n");
+    fflush(stdout);
+    print_mat(nn.layers[2].W);
+    //Matrix expected = new_matrix(10, 1);
+    //expected.v[5] = 1;
+    //backward_pass(&nn, expected);
+    //print(nn.layers[2].W);
+    printf("gang2\n");
+    fflush(stdout);
+    printf("done");
+    fflush(stdout);
     return 0;
 }
 
+/*
 void save_network(NeuralNetwork *nn) {
     FILE *file;
     file = fopen("save.neural", "w");
@@ -265,10 +190,10 @@ void load_network(NeuralNetwork *nn, char *path) {
         errx(1, "Could not load network from: %s", path);
     }
 
-    char line[500];
+    char line[100000];
     int n = 0;
     enum Mode mode = HYPERPARAMS;
-    while (fgets(line, 500, file) != NULL) {
+    while (fgets(line, 100000, file) != NULL) {
         if (strncmp(line, "--", 2) == 0) {
             char *modestr = line + 2;
             if (strncmp(modestr, "l", 1) == 0) {
@@ -409,11 +334,12 @@ LabeledImage *load_dataset(char *path, size_t *len_d) {
     (*len_d) = len;
     return dataset;
 }
+*/
 
-void print_pixel(float *img, int w, int h) {
+void print_pixel(double *img, int w, int h) {
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
-            float a = img[x * 28 + y] * 255;
+            double a = img[x * 28 + y] * 255;
             char c;
             if (a > 240)
                 c = ' ';
@@ -439,8 +365,9 @@ void print_pixel(float *img, int w, int h) {
     }
 }
 
-void get_input(float *res, char *image_path) {
-    SDL_Surface *surface;
+
+void load_image(double *res, char *image_path) {
+    SDL_Surface* surface;
     surface = IMG_Load(image_path);
     if (!surface) {
         errx(1, "Could not load image (%s)", image_path);
@@ -454,7 +381,7 @@ void get_input(float *res, char *image_path) {
         for (int x = 0; x < w; x++) {
             GetPixelColor(surface, x, y, &r, &g, &b);
             unsigned char average = (r + g + b) / 3;
-            res[x * 28 + y] = (float)average / 255;
+            res[x * 28 + y] = (double)average / 255;
         }
     }
 

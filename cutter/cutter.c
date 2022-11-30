@@ -299,20 +299,24 @@ void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
 
     unsigned int *histo = calloc(3000, sizeof(unsigned int));
 
-    size_t vert = 0, hori = 0;
-    unsigned int rho1 = -1, rho2 = -1;
+    Line *vertLines = calloc(len, sizeof(Line));
+    Line *horiLines = calloc(len, sizeof(Line));
+    size_t vertLen = 0, horiLen = 0;
 
+
+    //Filter in two separate array vertical and horizontal lines
+    //Remove the others
+    unsigned int rho1 = -1, rho2 = -1;
     for (size_t i = 0; i < len; i++){
         Line line = lines[i];
 
-        if (line.theta % 90 >= 2 && line.theta % 90 <= 88){
+        if (line.theta % 90 >= 2 && line.theta % 90 <= 88)
             accumulator[line.accuPos] = 0;            
-            lines[i].value = 0;
-        }
         else{
             if(line.theta < 2){
-                vert++;
-                if (rho1 == (unsigned int)-1)
+                vertLines[vertLen] = line;
+                vertLen++;
+                if (vertLen == 1)
                     rho1 = line.rho;
                 else{
                     histo[line.rho - rho1] += 1;
@@ -320,8 +324,9 @@ void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
                 }
             }
             else{
-                hori++;
-                if (rho2 == (unsigned int)-1)
+                horiLines[horiLen] = line;
+                horiLen++;
+                if (horiLen == 1)
                     rho2 = line.rho;
                 else{
                     histo[line.rho - rho2] += 1;
@@ -334,50 +339,78 @@ void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
 
 
     size_t range = 20;
-    while (range > 0 && (hori != 10 || vert != 10)){
+    while (range > 0 && (horiLen > 10 || vertLen > 10)){
         size_t gap = FindGap(histo, range);
 
-        char checkVert = -1, checkHori = -1;
-        unsigned int rhoVert = -1, rhoHor = -1;
+        
+        size_t dGap = 40;
+        while (dGap > 0 && vertLen > 10){
+            //Vertical Lines
+            char inSudoku = 0;
+            Line prev = vertLines[0];
+            size_t tmp = vertLen;
+            for (size_t i = 1; i < tmp; i++){
+                Line curr = vertLines[i];
+                size_t dRho = (curr.rho - prev.rho) % gap;
 
-        for (size_t i = 0; i < len; i++){
-            Line line = lines[i];
-
-            if (line.value != 0 && line.theta < 2){
-                if (checkVert == -1){
-                    rhoVert = line.rho;
-                    checkVert = 0;
-                }
-                else{
-                    size_t dr = line.rho - rhoVert;
-                    rhoVert = line.rho;
-                }
-            }
-            else if (line.value != 0){
-                if (checkHori == -1){
-                    rhoHor = line.rho;
-                    checkHori = 0;
-                }
-                else{
-                    size_t dr = (line.rho - rhoHor) % gap;
-                    if (dr > 10 && dr < gap-10){
-                        if (!checkHori){
-                            line.value = 0;
-                            accumulator[line.accuPos] = 0;
-                        }
-                        checkHori = 0;
+                if (dRho > dGap && dRho < gap-dGap){
+                    if (!inSudoku){
+                        prev.value = 0;
+                        accumulator[prev.accuPos] = 0;
                     }
                     else {
-                        checkHori = 1;
+                        curr.value = 0;
+                        accumulator[curr.accuPos] = 0;
                     }
-                    rhoHor = line.rho;
+                    vertLen--;
                 }
+                else {
+                    inSudoku = 1;
+                }
+                prev = curr;
             }
+            dGap--;
         }
+
+
+
+        dGap = 40;
+        while (dGap > 0 && horiLen > 10){
+            //Horizontal Lines
+            char inSudoku = 0;
+            Line prev = horiLines[0];
+            size_t tmp = horiLen;
+            for (size_t i = 1; i < tmp; i++){
+                Line curr = horiLines[i];
+                size_t dRho = (curr.rho - prev.rho) % gap;
+
+                if (dRho > 30 && dRho < gap-30){
+                    if (!inSudoku){
+                        prev.value = 0;
+                        accumulator[prev.accuPos] = 0;
+                    }
+                    else {
+                        curr.value = 0;
+                        accumulator[curr.accuPos] = 0;
+                    }
+                    horiLen--;
+                }
+                else {
+                    inSudoku = 1;
+                }
+                prev = curr;
+            }
+            dGap-- ;
+        }
+
         range--;
     }
 
+    printf("vert:%lu hori:%lu\n", vertLen, horiLen);
+
     free(histo);
+    free(vertLines);
+    free(horiLines);
 }
 
 
@@ -398,7 +431,6 @@ size_t FindGap(unsigned int *histo, size_t range){
         }
     }
     return gap;
-    
 }
 
 

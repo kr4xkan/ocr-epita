@@ -16,6 +16,17 @@ void free_network(NeuralNetwork* nn) {
         free_layer(&nn->layers[i]);
     }
     free(nn->layers);
+    free_matrix(&nn->updates.dZ2);
+    free_matrix(&nn->updates.dW2);
+    free_matrix(&nn->updates.mW2);
+    free_matrix(&nn->updates.dB2);
+    free_matrix(&nn->updates.mB2);
+    free_matrix(&nn->updates.dZ1);
+    free_matrix(&nn->updates.dW1);
+    free_matrix(&nn->updates.mW1);
+    free_matrix(&nn->updates.dB1);
+    free_matrix(&nn->updates.mB1);
+    fclose(nn->csv);
 }
 
 void free_layer(Layer* layer) {
@@ -46,12 +57,33 @@ NeuralNetwork new_network(int argc, char** argv) {
     NeuralNetwork nn;
     nn.layer_count = 3;
     nn.learning_rate = 0.005;
+    nn.decay = 0.00000002;
+    nn.momentum = 1;
+    nn.updates.current_learning_rate = nn.learning_rate;
+    nn.updates.iterations = 0;
     nn.layers = calloc(nn.layer_count, sizeof(Layer));
     nn.layers[0] = new_layer(ReLU, 784, 0);
-    nn.layers[1] = new_layer(ReLU, 10, 784);
-    nn.layers[2] = new_layer(SoftMax, 10, 10);
+    nn.layers[1] = new_layer(ReLU, 15, 784);
+    nn.layers[2] = new_layer(SoftMax, 10, 15);
     free(nn.layers[0].A.v);
+    nn.updates.dZ2 = new_matrix(nn.layers[2].Z.n, nn.layers[2].Z.p);
+    nn.updates.dW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
+    nn.updates.mW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
+    nn.updates.dB2 = new_matrix(nn.layers[2].B.n, nn.layers[2].B.p);
+    nn.updates.mB2 = new_matrix(nn.layers[2].B.n, nn.layers[2].B.p);
+    nn.updates.dZ1 = new_matrix(nn.layers[1].Z.n, nn.layers[1].Z.p);
+    nn.updates.dW1 = new_matrix(nn.layers[1].W.n, nn.layers[1].W.p);
+    nn.updates.mW1 = new_matrix(nn.layers[1].W.n, nn.layers[1].W.p);
+    nn.updates.dB1 = new_matrix(nn.layers[1].B.n, nn.layers[1].B.p);
+    nn.updates.mB1 = new_matrix(nn.layers[1].B.n, nn.layers[1].B.p);
+    nn.csv = fopen("stat.csv", "w");
+    fprintf(nn.csv, "error,lr\n");
     return nn;
+}
+
+void print_stat(NeuralNetwork* nn, double error) {
+    fprintf(nn->csv, "%f,%f\n", error, nn->updates.current_learning_rate);
+    fflush(nn->csv);;
 }
 
 void forward_pass(NeuralNetwork* nn) {
@@ -74,48 +106,50 @@ void forward_pass(NeuralNetwork* nn) {
 }
 
 double backward_pass(NeuralNetwork* nn, Matrix expected) {
-    Matrix dZ2 = new_matrix(nn->layers[2].Z.n,nn->layers[2].Z.p);
-    Matrix dW2 = new_matrix(nn->layers[2].W.n,nn->layers[2].W.p);
-    Matrix dB2 = new_matrix(nn->layers[2].B.n,nn->layers[2].B.p);
-    Matrix dZ1 = new_matrix(nn->layers[1].Z.n,nn->layers[1].Z.p);
-    Matrix dW1 = new_matrix(nn->layers[1].W.n,nn->layers[1].W.p);
-    Matrix dB1 = new_matrix(nn->layers[1].B.n,nn->layers[1].B.p);
+    nn->updates.current_learning_rate =
+        nn->learning_rate * (1 / (1 + nn->decay * nn->updates.iterations));
 
-    sub(nn->layers[2].A, expected, dZ2);
+    sub(nn->layers[2].A, expected, nn->updates.dZ2);
     Matrix A1T = transpose(nn->layers[1].A);
-    multiply(dZ2, A1T, dW2);
+    multiply(nn->updates.dZ2, A1T, nn->updates.dW2);
 
     Matrix W2T = transpose(nn->layers[2].W);
-    multiply(W2T, dZ2, dZ1);
+    multiply(W2T, nn->updates.dZ2, nn->updates.dZ1);
     Matrix dRelu = relu_deriv(nn->layers[1].Z);
-    multiply_ew(dZ1, dRelu, dZ1);
+    multiply_ew(nn->updates.dZ1, dRelu, nn->updates.dZ1);
     Matrix A0T = transpose(nn->layers[0].A);
-    multiply(dZ1, A0T, dW1);
+    multiply(nn->updates.dZ1, A0T, nn->updates.dW1);
 
-    multiply_scalar(dW2, nn->learning_rate, dW2);
-    multiply_scalar(dW1, nn->learning_rate, dW1);
+    multiply_scalar(nn->updates.dW2, nn->updates.current_learning_rate, nn->updates.dW2);
+    multiply_scalar(nn->updates.dW1, nn->updates.current_learning_rate, nn->updates.dW1);
+    multiply_scalar(nn->updates.dZ2, nn->updates.current_learning_rate, nn->updates.dB2);
+    multiply_scalar(nn->updates.dZ1, nn->updates.current_learning_rate, nn->updates.dB1);
 
-    sub(nn->layers[2].W, dW2, nn->layers[2].W);
-    sub(nn->layers[1].W, dW1, nn->layers[1].W);
-    double sumDZ2 = -sum(dZ2) / (dZ2.n * dZ2.p);
-    double sumDZ1 = -sum(dZ1) / (dZ1.n * dZ1.p);
-    add_scalar(nn->layers[2].B, sumDZ2, nn->layers[2].B);
-    add_scalar(nn->layers[1].B, sumDZ1, nn->layers[1].B);
+    multiply_scalar(nn->updates.mW2, nn->momentum, nn->updates.mW2);
+    multiply_scalar(nn->updates.mW1, nn->momentum, nn->updates.mW1);
+    multiply_scalar(nn->updates.mB2, nn->momentum, nn->updates.mB2);
+    multiply_scalar(nn->updates.mB1, nn->momentum, nn->updates.mB1);
+    sub(nn->updates.mW2, nn->updates.dW2, nn->updates.mW2);
+    sub(nn->updates.mW1, nn->updates.dW1, nn->updates.mW1);
+    sub(nn->updates.mB2, nn->updates.dB2, nn->updates.mB2);
+    sub(nn->updates.mB1, nn->updates.dB1, nn->updates.mB1);
 
-    double errors = sum_abs(dZ2);
+    // add(nn->layers[2].W, nn->updates.mW2, nn->layers[2].W);
+    // add(nn->layers[1].W, nn->updates.mW1, nn->layers[1].W);
+    // add(nn->layers[2].B, nn->updates.mB2, nn->layers[2].B);
+    // add(nn->layers[1].B, nn->updates.mB1, nn->layers[1].B);
+    sub(nn->layers[2].W, nn->updates.dW2, nn->layers[2].W);
+    sub(nn->layers[1].W, nn->updates.dW1, nn->layers[1].W);
+    sub(nn->layers[2].B, nn->updates.dB2, nn->layers[2].B);
+    sub(nn->layers[1].B, nn->updates.dB1, nn->layers[1].B);
 
     free_matrix(&W2T);
     free_matrix(&A1T);
     free_matrix(&A0T);
     free_matrix(&dRelu);
-    free_matrix(&dZ2);
-    free_matrix(&dW2);
-    free_matrix(&dB2);
-    free_matrix(&dZ1);
-    free_matrix(&dW1);
-    free_matrix(&dB1);
 
-    return errors;
+    nn->updates.iterations++;
+    return sum_abs(nn->updates.dZ2);
 }
 
 int main(int argc, char **argv) {
@@ -151,8 +185,13 @@ int main(int argc, char **argv) {
             forward_pass(&nn);
             error += backward_pass(&nn, expected);
         }
+        print_stat(&nn, error);
         if (i % 10 == 0) {
-            printf("[%zu] Error: %.4f\n", i, error);
+            printf("[%zu] Error: %.4f    LR: %f\n", i, error, nn.updates.current_learning_rate);
+            fflush(stdout);
+        }
+        if (i % 100 == 0) {
+            print_mat(nn.updates.dW2);
             fflush(stdout);
         }
     }
@@ -162,37 +201,27 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-/*
 void save_network(NeuralNetwork *nn) {
     FILE *file;
     file = fopen("save.neural", "w");
 
-    fprintf(file, "%d\n", nn->layer_count);
-    fprintf(file, "%d\n", nn->batch_size);
+    fprintf(file, "%zu\n", nn->layer_count);
+    fprintf(file, "%f\n", nn->decay);
+    fprintf(file, "%f\n", nn->momentum);
     fprintf(file, "%f\n", nn->learning_rate);
+    fprintf(file, "%f\n", nn->updates.current_learning_rate);
+    fprintf(file, "%zu\n", nn->updates.iterations);
     fprintf(file, "--l\n");
-    for (int k = 0; k < nn->layer_count; k++) {
-        fprintf(file, "%d\n", nn->layers_node_count[k]);
-    }
+    for (szt i = 0; i < nn->layer_count; i++)
+        fprintf(file, "%zu,%d\n", nn->layers[i].size, nn->layers[i].activation);
     fprintf(file, "--w\n");
-    for (int k = 0; k < nn->layer_count - 1; k++) {
-        size_t len = nn->weights_sizes[k][0] * nn->weights_sizes[k][1];
-        for (size_t c = 0; c < len; c++) {
-            fprintf(file, c == len - 1 ? "%f" : "%f,", nn->weights[k][c]);
-        }
-        fprintf(file, "\n");
-    }
-    fprintf(file, "--b\n");
-    for (int k = 0; k < nn->layer_count - 1; k++) {
-        size_t len = nn->layers_node_count[k + 1];
-        for (size_t c = 0; c < len; c++) {
-            fprintf(file, c == len - 1 ? "%f" : "%f,", nn->bias[k][c]);
-        }
-        fprintf(file, "\n");
+    for (szt i = 1; i < nn->layer_count; i++) {
+
     }
     fclose(file);
 }
 
+/*
 enum Mode {
     HYPERPARAMS,
     LAYERS,

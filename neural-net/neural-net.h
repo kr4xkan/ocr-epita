@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdio.h>
 #include <stddef.h>
 #include "matrix.h"
 
@@ -25,16 +26,36 @@ typedef struct Layer {
     Matrix B;
 } Layer;
 
+typedef struct Updates {
+    Matrix dZ1;
+    Matrix dZ2;
+    Matrix dW1;
+    Matrix dW2;
+    Matrix mW1;
+    Matrix mW2;
+    Matrix dB1;
+    Matrix dB2;
+    Matrix mB1;
+    Matrix mB2;
+    double current_learning_rate;
+    szt iterations;
+} Updates;
+
 typedef struct NeuralNetwork {
     Layer* layers;
+    Updates updates;
     size_t layer_count;
-    float learning_rate;
+    double learning_rate;
+    double decay;
+    double momentum;
+    FILE* csv;
 } NeuralNetwork;
 
 NeuralNetwork new_network(int argc, char** argv);
 Layer new_layer(enum ActivationFunction activation, size_t num_nodes, size_t prev_num_nodes);
 void free_network(NeuralNetwork* nn);
 void free_layer(Layer* layer);
+void print_stat(NeuralNetwork* nn, double error);
 
 int guess_xor(char *input);
 

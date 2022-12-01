@@ -53,6 +53,28 @@ Layer new_layer(
     return l;
 }
 
+// size - activation - W - B
+void serialize_layer(Buffer* buf, Layer* layer) {
+    size_t required_size = sizeof(enum ActivationFunction) + sizeof(int);
+    reserve_space(buf, required_size);
+    write_buffer(buf, &layer->size, sizeof(int));
+    write_buffer(buf, &layer->activation, sizeof(enum ActivationFunction));
+    serialize_matrix(buf, &layer->W);
+    serialize_matrix(buf, &layer->B);
+}
+
+Layer deserialize_layer(Buffer* buf) {
+    Layer l;
+    int i;
+    read_buffer(buf, &i, sizeof(int));
+    l.size = i;
+    read_buffer(buf, &i, sizeof(enum ActivationFunction));
+    l.activation = i;
+    l.W = deserialize_matrix(buf);
+    l.B = deserialize_matrix(buf);
+    return l;
+}
+
 NeuralNetwork new_network(int argc, char** argv) {
     NeuralNetwork nn;
     nn.layer_count = 3;
@@ -78,6 +100,39 @@ NeuralNetwork new_network(int argc, char** argv) {
     nn.updates.mB1 = new_matrix(nn.layers[1].B.n, nn.layers[1].B.p);
     nn.csv = fopen("stat.csv", "w");
     fprintf(nn.csv, "error,lr\n");
+    return nn;
+}
+
+// layer_count - iterations - current_learning_rate - learning_rate - decay - momentum - layers
+void serialize_network(Buffer* buf, NeuralNetwork* nn) {
+    size_t required_size = sizeof(double) * 4 + sizeof(int) * 2;
+    reserve_space(buf, required_size);
+
+    write_buffer(buf, &nn->layer_count, sizeof(int));
+    write_buffer(buf, &nn->updates.iterations, sizeof(int));
+    write_buffer(buf, &nn->updates.current_learning_rate, sizeof(double));
+    write_buffer(buf, &nn->learning_rate, sizeof(double));
+    write_buffer(buf, &nn->decay, sizeof(double));
+    write_buffer(buf, &nn->momentum, sizeof(double));
+
+    for (size_t i = 1; i < nn->layer_count; i++)
+        serialize_layer(buf, nn->layers + i);
+}
+
+NeuralNetwork deserialize_network(Buffer* buf) {
+    NeuralNetwork nn;
+    int i;
+    read_buffer(buf, &i, sizeof(int));
+    nn.layer_count = i;
+    read_buffer(buf, &i, sizeof(int));
+    nn.updates.iterations = i;
+    read_buffer(buf, &nn.updates.current_learning_rate, sizeof(double));
+    read_buffer(buf, &nn.learning_rate, sizeof(double));
+    read_buffer(buf, &nn.decay, sizeof(double));
+    read_buffer(buf, &nn.momentum, sizeof(double));
+    nn.layers = malloc(nn.layer_count * sizeof(Layer));
+    for (size_t i = 1; i < nn.layer_count; i++)
+        nn.layers[i] = deserialize_layer(buf);
     return nn;
 }
 
@@ -156,10 +211,26 @@ int main(int argc, char **argv) {
     // Initialize randomizer
     srand((unsigned int)time(NULL));
 
+
     if (argc != 2)
         errx(1, "./neural-net <path>");
 
+    if (strcmp(argv[1], "load") == 0) {
+        Buffer* buf = load_buffer("save.nrl");
+        NeuralNetwork test = deserialize_network(buf);
+        print_mat(test.layers[2].W);
+        return 0;
+    }
+
     NeuralNetwork nn = new_network(argc, argv);
+    print_mat(nn.layers[2].W);
+    Buffer* buf = new_buffer();
+    serialize_network(buf, &nn);
+    printf("Serialized to buffer, size = %zu , capacity = %zu \n\n", buf->size, buf->capacity);
+
+    save_buffer(buf, "save.nrl");
+
+    return 0;
 
     szt len_dataset;
     LabeledImage* dataset = load_dataset(argv[1], &len_dataset);

@@ -51,6 +51,7 @@ typedef struct NeuralNetwork {
     FILE* csv;
 } NeuralNetwork;
 
+void serialize_layer(Buffer* buf, Layer* layer);
 NeuralNetwork new_network(int argc, char** argv);
 Layer new_layer(enum ActivationFunction activation, size_t num_nodes, size_t prev_num_nodes);
 void free_network(NeuralNetwork* nn);

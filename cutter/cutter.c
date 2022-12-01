@@ -310,8 +310,7 @@ void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
     for (size_t i = 0; i < len; i++){
         Line line = lines[i];
 
-        if (line.theta % 90 >= 2 && line.theta % 90 <= 88)
-            accumulator[line.accuPos] = 0;            
+        if (line.theta % 90 >= 2 && line.theta % 90 <= 88) accumulator[line.accuPos] = 0;            
         else{
             if(line.theta < 2){
                 vertLines[vertLen] = line;
@@ -337,8 +336,8 @@ void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
     }
 
 
-
-    size_t range = 20;
+    size_t range = 10;
+    size_t tmp = vertLen;
     while (range > 0 && (horiLen > 10 || vertLen > 10)){
         size_t gap = FindGap(histo, range);
 
@@ -347,20 +346,23 @@ void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
         while (dGap > 0 && vertLen > 10){
             //Vertical Lines
             char inSudoku = 0;
-            Line prev = vertLines[0];
-            size_t tmp = vertLen;
+            Line *prev = &vertLines[0];
             for (size_t i = 1; i < tmp; i++){
-                Line curr = vertLines[i];
-                size_t dRho = (curr.rho - prev.rho) % gap;
+                Line *curr = &vertLines[i];
+                if (curr->value == 0){
+                    continue;
+                    printf("aaaaaaaaaaaaaaaaaaaaa\n");
+                }
 
+                size_t dRho = (curr->rho - prev->rho) % gap;
                 if (dRho > dGap && dRho < gap-dGap){
                     if (!inSudoku){
-                        prev.value = 0;
-                        accumulator[prev.accuPos] = 0;
+                        prev->value = 0;
+                        accumulator[prev->accuPos] = 0;
                     }
                     else {
-                        curr.value = 0;
-                        accumulator[curr.accuPos] = 0;
+                        curr->value = 0;
+                        accumulator[curr->accuPos] = 0;
                     }
                     vertLen--;
                 }
@@ -375,23 +377,27 @@ void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
 
 
         dGap = 40;
+        tmp = horiLen;
         while (dGap > 0 && horiLen > 10){
             //Horizontal Lines
             char inSudoku = 0;
-            Line prev = horiLines[0];
-            size_t tmp = horiLen;
+            Line *prev = &horiLines[0];
             for (size_t i = 1; i < tmp; i++){
-                Line curr = horiLines[i];
-                size_t dRho = (curr.rho - prev.rho) % gap;
+                Line *curr = &horiLines[i];
+                if (curr->value == 0){
+                    continue;
+                    printf("aaaaaaaaaaaaaaaaaaaaa\n");
+                }
 
-                if (dRho > 30 && dRho < gap-30){
+                size_t dRho = (curr->rho - prev->rho) % gap;
+                if (dRho > dGap && dRho < gap-dGap){
                     if (!inSudoku){
-                        prev.value = 0;
-                        accumulator[prev.accuPos] = 0;
+                        prev->value = 0;
+                        accumulator[prev->accuPos] = 0;
                     }
                     else {
-                        curr.value = 0;
-                        accumulator[curr.accuPos] = 0;
+                        curr->value = 0;
+                        accumulator[curr->accuPos] = 0;
                     }
                     horiLen--;
                 }

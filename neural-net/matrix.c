@@ -152,7 +152,7 @@ void multiply_scalar(Matrix a, double alpha, Matrix res) {
 void add(Matrix a, Matrix b, Matrix res) {
     for (size_t i = 0; i < a.n; i++) {
         for (size_t j = 0; j < a.p; j++) {
-            res.v[i * a.p + j] = a.v[i * a.p + j] + b.v[i * b.p + j];
+            res.v[i * a.p + j] = a.v[i * a.p + j] + b.v[i * b.p + (j % b.p)];
         }
     }
 }
@@ -193,6 +193,14 @@ double sum_abs(Matrix a) {
     return res;
 }
 
+void sum_vector(Matrix a, Matrix res) {
+    for (size_t i = 0; i < a.n; i++) {
+        for (size_t j = 0; j < a.p; j++) {
+            res.v[i * res.p + (j % res.p)] += a.v[i * a.p + j];
+        }
+    }
+}
+
 void relu(Matrix a, Matrix res) {
     for (size_t i = 0; i < a.n; i++) {
         for (size_t j = 0; j < a.p; j++) {
@@ -228,19 +236,6 @@ void softmax(Matrix a, Matrix res) {
         for (size_t i = 0; i < a.n; i++) {
             res.v[i * a.p + j] /= sum;
         }
-    }
-}
-
-void crossentropy(Matrix a, Matrix expected, Matrix res) {
-    for (size_t i = 0; i < a.n * a.p; i++) {
-        double val = a.v[i];
-        if (val > 1 - 1e-4) {
-            val = 1 - 1e-4;
-        } else if (val < 1e-4) {
-            val = 1e-4;
-        }
-        res.v[i] = -log2(val);
-        printf("%f\n", res.v[i]);
     }
 }
 

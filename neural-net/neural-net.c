@@ -12,6 +12,7 @@
 #include "neural-net.h"
 
 void free_network(NeuralNetwork* nn) {
+    free(nn->layers[0].A.v);
     for (szt i = 1; i < nn->layer_count; i++) {
         free_layer(&nn->layers[i]);
     }
@@ -41,14 +42,15 @@ void free_layer(Layer* layer) {
 Layer new_layer(
         enum ActivationFunction activation,
         size_t num_nodes,
-        size_t prev_num_nodes
+        size_t prev_num_nodes,
+        size_t batch_size
 ) {
     Layer l;
     l.size = num_nodes;
     l.activation = activation;
-    l.A = new_matrix(num_nodes, 1);
+    l.A = new_matrix(num_nodes, batch_size);
     if (prev_num_nodes != 0) {
-        l.Z = new_matrix(num_nodes, 1);
+        l.Z = new_matrix(num_nodes, batch_size);
         l.B = new_random_matrix(num_nodes, 1);
         l.W = new_random_matrix(num_nodes, prev_num_nodes);
     }
@@ -65,7 +67,7 @@ void serialize_layer(Buffer* buf, Layer* layer) {
     serialize_matrix(buf, &layer->B);
 }
 
-Layer deserialize_layer(Buffer* buf) {
+Layer deserialize_layer(Buffer* buf, size_t batch_size) {
     Layer l;
     size_t i;
     read_buffer(buf, &i, sizeof(size_t));
@@ -74,8 +76,8 @@ Layer deserialize_layer(Buffer* buf) {
     l.activation = i;
     l.W = deserialize_matrix(buf);
     l.B = deserialize_matrix(buf);
-    l.A = new_matrix(l.size, 1);
-    l.Z = new_matrix(l.size, 1);
+    l.A = new_matrix(l.size, batch_size);
+    l.Z = new_matrix(l.size, batch_size);
     return l;
 }
 
@@ -85,13 +87,13 @@ NeuralNetwork new_network(double learning_rate) {
     nn.learning_rate = learning_rate;
     nn.decay = 0.000001;
     nn.momentum = 0.5;
+    nn.batch_size = 1;
     nn.updates.current_learning_rate = nn.learning_rate;
     nn.updates.iterations = 0;
     nn.layers = calloc(nn.layer_count, sizeof(Layer));
-    nn.layers[0] = new_layer(ReLU, 784, 0);
-    nn.layers[1] = new_layer(ReLU, 15, 784);
-    nn.layers[2] = new_layer(SoftMax, 10, 15);
-    free(nn.layers[0].A.v);
+    nn.layers[0] = new_layer(ReLU, 784, 0, nn.batch_size);
+    nn.layers[1] = new_layer(ReLU, 15, 784, nn.batch_size);
+    nn.layers[2] = new_layer(SoftMax, 10, 15, nn.batch_size);
     nn.updates.dZ2 = new_matrix(nn.layers[2].Z.n, nn.layers[2].Z.p);
     nn.updates.dW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
     nn.updates.mW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
@@ -107,13 +109,14 @@ NeuralNetwork new_network(double learning_rate) {
     return nn;
 }
 
-// layer_count - iterations - current_learning_rate - learning_rate - decay - momentum - layers
+// layer_count - iterations - batch_size - current_learning_rate - learning_rate - decay - momentum - layers
 void serialize_network(Buffer* buf, NeuralNetwork* nn) {
-    size_t required_size = sizeof(double) * 4 + sizeof(size_t) * 2;
+    size_t required_size = sizeof(double) * 4 + sizeof(size_t) * 3;
     reserve_space(buf, required_size);
 
     write_buffer(buf, &nn->layer_count, sizeof(size_t));
     write_buffer(buf, &nn->updates.iterations, sizeof(size_t));
+    write_buffer(buf, &nn->batch_size, sizeof(size_t));
     write_buffer(buf, &nn->updates.current_learning_rate, sizeof(double));
     write_buffer(buf, &nn->learning_rate, sizeof(double));
     write_buffer(buf, &nn->decay, sizeof(double));
@@ -130,16 +133,17 @@ NeuralNetwork deserialize_network(Buffer* buf) {
     nn.layer_count = i;
     read_buffer(buf, &i, sizeof(size_t));
     nn.updates.iterations = i;
+    read_buffer(buf, &i, sizeof(size_t));
+    nn.batch_size = i;
     read_buffer(buf, &nn.updates.current_learning_rate, sizeof(double));
     read_buffer(buf, &nn.learning_rate, sizeof(double));
     read_buffer(buf, &nn.decay, sizeof(double));
     read_buffer(buf, &nn.momentum, sizeof(double));
     nn.layers = malloc(nn.layer_count * sizeof(Layer));
     for (size_t i = 1; i < nn.layer_count; i++)
-        nn.layers[i] = deserialize_layer(buf);
+        nn.layers[i] = deserialize_layer(buf, nn.batch_size);
 
-    nn.layers[0] = new_layer(ReLU, 784, 0);
-    free(nn.layers[0].A.v);
+    nn.layers[0] = new_layer(ReLU, 784, 0, nn.batch_size);
     nn.updates.dZ2 = new_matrix(nn.layers[2].Z.n, nn.layers[2].Z.p);
     nn.updates.dW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
     nn.updates.mW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
@@ -184,8 +188,6 @@ double backward_pass(NeuralNetwork* nn, Matrix expected) {
         nn->learning_rate * (1 / (1 + nn->decay * nn->updates.iterations));
 
     sub(nn->layers[2].A, expected, nn->updates.dZ2);
-    //multiply_ew(nn->updates.dZ2, nn->updates.dZ2, nn->updates.dZ2);
-    //crossentropy(nn->layers[2].A, expected, nn->updates.dZ2);
     Matrix A1T = transpose(nn->layers[1].A);
     multiply(nn->updates.dZ2, A1T, nn->updates.dW2);
 
@@ -196,10 +198,12 @@ double backward_pass(NeuralNetwork* nn, Matrix expected) {
     Matrix A0T = transpose(nn->layers[0].A);
     multiply(nn->updates.dZ1, A0T, nn->updates.dW1);
 
-    multiply_scalar(nn->updates.dW2, nn->updates.current_learning_rate, nn->updates.dW2);
-    multiply_scalar(nn->updates.dW1, nn->updates.current_learning_rate, nn->updates.dW1);
-    multiply_scalar(nn->updates.dZ2, nn->updates.current_learning_rate, nn->updates.dB2);
-    multiply_scalar(nn->updates.dZ1, nn->updates.current_learning_rate, nn->updates.dB1);
+    multiply_scalar(nn->updates.dW2, nn->updates.current_learning_rate/nn->batch_size, nn->updates.dW2);
+    multiply_scalar(nn->updates.dW1, nn->updates.current_learning_rate/nn->batch_size, nn->updates.dW1);
+    sum_vector(nn->updates.dZ2, nn->updates.dB2);
+    sum_vector(nn->updates.dZ1, nn->updates.dB1);
+    multiply_scalar(nn->updates.dB2, nn->updates.current_learning_rate/nn->batch_size, nn->updates.dB2);
+    multiply_scalar(nn->updates.dB1, nn->updates.current_learning_rate/nn->batch_size, nn->updates.dB1);
 
     multiply_scalar(nn->updates.mW2, nn->momentum, nn->updates.mW2);
     multiply_scalar(nn->updates.mW1, nn->momentum, nn->updates.mW1);
@@ -284,7 +288,7 @@ void cmd_test(int argc, char **argv) {
 
     szt correct = 0;
     for (size_t i = 0; i < len_dataset; i++) {
-        nn.layers[0].A.v = dataset[i].data;
+        memcpy(nn.layers[0].A.v, dataset[i].data, 784 * sizeof(double));
         forward_pass(&nn);
 
         double max = nn.layers[2].A.v[0];
@@ -296,7 +300,7 @@ void cmd_test(int argc, char **argv) {
             }
         }
 
-        correct += max_index == dataset[i].label;
+        correct += max_index == (size_t)dataset[i].label;
     }
 
     printf("%.2f%% correct (%zu/%zu)\n", (float)correct*100/len_dataset, correct, len_dataset);
@@ -329,8 +333,7 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
     szt len_dataset;
     LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
 
-    Matrix expected = new_matrix(10, 1);
-    szt prev = 0;
+    Matrix expected = new_matrix(10, nn.batch_size);
     for (szt i = 0; i < iterations; i++) {
         // Randomize array
         // for (szt i = 0; i < len_dataset - 1; i++) {
@@ -341,12 +344,13 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
         // }
 
         double error = 0;
-        for (szt j = 0; j < len_dataset; j++) {
-            LabeledImage img = dataset[j];
-            expected.v[prev] = 0;
-            expected.v[img.label] = 1;
-            prev = img.label;
-            nn.layers[0].A.v = img.data;
+        for (szt j = 0; j < len_dataset; j+=nn.batch_size) {
+            memset(expected.v, 0, expected.n * expected.p * sizeof(double));
+            for (size_t k = 0; k < nn.batch_size; k++) {
+                LabeledImage img = dataset[j + k];
+                expected.v[img.label + (k * 10)] = 1;
+                memcpy(nn.layers[0].A.v + (784 * k), img.data, 784 * sizeof(double));
+            }
             forward_pass(&nn);
             error += backward_pass(&nn, expected);
         }

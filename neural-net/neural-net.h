@@ -48,12 +48,13 @@ typedef struct NeuralNetwork {
     double learning_rate;
     double decay;
     double momentum;
+    size_t batch_size;
     FILE* csv;
 } NeuralNetwork;
 
 void serialize_layer(Buffer* buf, Layer* layer);
 NeuralNetwork new_network(double learning_rate);
-Layer new_layer(enum ActivationFunction activation, size_t num_nodes, size_t prev_num_nodes);
+Layer new_layer(enum ActivationFunction activation, size_t num_nodes, size_t prev_num_nodes, size_t batch_size);
 void free_network(NeuralNetwork* nn);
 void free_layer(Layer* layer);
 void print_stat(NeuralNetwork* nn, double error);

@@ -11,10 +11,11 @@
 #define pi 3.1415926535
 
 
-void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
+Intersection* DetectIntersections(SDL_Surface *surface, unsigned int *normalSpace, size_t *length){
     int w = surface->w, h = surface->h;
 
     size_t len = 200;
+    *length = len;
     Intersection *coords = calloc(len*len, sizeof(Intersection));
     size_t nbIntersection = 0;
 
@@ -41,26 +42,6 @@ void CropSquares(SDL_Surface *surface, unsigned int *normalSpace) {
     }
     if (TryCrop(surface, len, coords, nbIntersection))
         return;
-
-    // Remove the intersections that are not align with the others
-    size_t gap = Ouaip(surface, coords, len);
-    x = 0, y = 0;
-    while (coords[y*len].x){
-        while (coords[y*len + x].x) {
-    
-            if (!IsValid(coords, len, x, y, gap)){
-                printf("x:%u  y:%u\n", x, y);
-                coords[y*len + x].x = 0;
-                coords[y*len + x].y = 0;
-                nbIntersection--; 
-            }
-
-            x++;
-        }
-        y++;
-        x = 1;
-    }
-    TryCrop(surface, len, coords, nbIntersection);
 
 
     // Remove the Intersections that are not on white points

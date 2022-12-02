@@ -2,7 +2,7 @@ CPPFLAGS = -MMD
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -g \
 		 $(shell pkg-config --cflags sdl2 SDL2_image)
-LDFLAGS =
+LDFLAGS = 
 LDLIBS = -lm $(shell pkg-config --libs sdl2 SDL2_image)
 
 SRC = cutter.c crop-manager.c ../utils.c

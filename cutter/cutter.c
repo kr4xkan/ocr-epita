@@ -1,6 +1,7 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_surface.h>
 #include <err.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "../utils.h"
@@ -94,9 +95,11 @@ int MainCutter(char *path) {
     SDL_Surface *surfaceRotated = CheckRotation(surface, accumulator);
 
     if (surfaceRotated == NULL) {
-        FilterLines(accumulator, accumulatorSize, lines);
-        unsigned int *space = DetectIntersections(surface, accumulator);
-        //CropSquares(surface, space);
+        lines = FilterLines(accumulator, accumulatorSize, lines);
+        unsigned int *space = CreateSpace(surface, lines);
+
+        size_t len = 0;
+        Intersection *intersections = DetectIntersections(surfaceRotated, space, &len);
 
         DrawLines(surface, accumulator, surface->pixels);
         DrawIntersections(surface, space);
@@ -107,21 +110,23 @@ int MainCutter(char *path) {
     else{
         unsigned int *accumulatorRotated = CreateAccumulator(surfaceRotated);
         Line *lines = DetectLines(accumulatorRotated, accumulatorSize);
-        FilterLines(accumulatorRotated, accumulatorSize, lines);
+        lines = FilterLines(accumulatorRotated, accumulatorSize, lines);
 
-        unsigned int *spaceRotated = DetectIntersections(surfaceRotated, accumulatorRotated);
-        //CropSquares(surfaceRotated, spaceRotated);
+        unsigned int *space = CreateSpace(surfaceRotated, lines);
+        Intersection *intersections = DetectIntersections(surfaceRotated, space);
 
         DrawLines(surfaceRotated, accumulatorRotated, surfaceRotated->pixels);
-        DrawIntersections(surfaceRotated, spaceRotated);
+        DrawIntersections(surfaceRotated, space);
         IMG_SavePNG(surfaceRotated, "result.png");
 
-        free(spaceRotated);
+        free(space);
         free(accumulatorRotated);
+        free(lines);
         SDL_FreeSurface(surfaceRotated);
     } 
 
     free(accumulator);
+    free(lines);
     SDL_FreeSurface(surface);
 
     t = clock() - t;
@@ -289,7 +294,7 @@ int CheckPeak(unsigned int *accumulator, size_t accumulatorSize, size_t i,
 }
 
 
-void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
+Line* FilterLines(unsigned int *accumulator, size_t accumulatorSize,
                                                     Line* lines){
 
     size_t len = 0;
@@ -297,7 +302,8 @@ void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
         len++;
     
 
-    unsigned int *histo = calloc(3000, sizeof(unsigned int));
+    size_t histoSize = accumulatorSize/maxTheta;
+    unsigned int *histo = calloc(histoSize, sizeof(unsigned int));
 
     Line *vertLines = calloc(len, sizeof(Line));
     Line *horiLines = calloc(len, sizeof(Line));
@@ -336,99 +342,56 @@ void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
     }
 
 
+
     size_t range = 10;
-    size_t tmp = vertLen;
+    size_t vertCapacity = vertLen, horiCapacity = horiLen;
     while (range > 0 && (horiLen > 10 || vertLen > 10)){
-        size_t gap = FindGap(histo, range);
-
-        
-        size_t dGap = 40;
-        while (dGap > 0 && vertLen > 10){
-            //Vertical Lines
-            char inSudoku = 0;
-            Line *prev = &vertLines[0];
-            for (size_t i = 1; i < tmp; i++){
-                Line *curr = &vertLines[i];
-                if (curr->value == 0){
-                    continue;
-                    printf("aaaaaaaaaaaaaaaaaaaaa\n");
-                }
-
-                size_t dRho = (curr->rho - prev->rho) % gap;
-                if (dRho > dGap && dRho < gap-dGap){
-                    if (!inSudoku){
-                        prev->value = 0;
-                        accumulator[prev->accuPos] = 0;
-                    }
-                    else {
-                        curr->value = 0;
-                        accumulator[curr->accuPos] = 0;
-                    }
-                    vertLen--;
-                }
-                else {
-                    inSudoku = 1;
-                }
-                prev = curr;
-            }
-            dGap--;
-        }
-
-
-
-        dGap = 40;
-        tmp = horiLen;
-        while (dGap > 0 && horiLen > 10){
-            //Horizontal Lines
-            char inSudoku = 0;
-            Line *prev = &horiLines[0];
-            for (size_t i = 1; i < tmp; i++){
-                Line *curr = &horiLines[i];
-                if (curr->value == 0){
-                    continue;
-                    printf("aaaaaaaaaaaaaaaaaaaaa\n");
-                }
-
-                size_t dRho = (curr->rho - prev->rho) % gap;
-                if (dRho > dGap && dRho < gap-dGap){
-                    if (!inSudoku){
-                        prev->value = 0;
-                        accumulator[prev->accuPos] = 0;
-                    }
-                    else {
-                        curr->value = 0;
-                        accumulator[curr->accuPos] = 0;
-                    }
-                    horiLen--;
-                }
-                else {
-                    inSudoku = 1;
-                }
-                prev = curr;
-            }
-            dGap-- ;
-        }
+        size_t gap = FindGap(histo, histoSize, range);
+        Remove(accumulator, vertLines, vertCapacity, &vertLen, gap);
+        Remove(accumulator, horiLines, horiCapacity, &horiLen, gap);
 
         range--;
     }
-
     printf("vert:%lu hori:%lu\n", vertLen, horiLen);
+
+
+    Line *newLines = malloc((vertLen*horiLen+1)*sizeof(Line));
+    size_t i = 0, j = 0;
+    while (i < vertCapacity){
+        if (vertLines[i].value != 0){
+            newLines[j] = vertLines[i];
+            j++;
+        }
+        i++;
+    }
+    i = 0;
+    while (i < horiCapacity){
+        if (horiLines[i].value != 0){
+            newLines[j] = horiLines[i];
+            j++;
+        }
+        i++;
+    }
+    newLines[j].value = 0;
+
 
     free(histo);
     free(vertLines);
     free(horiLines);
+    free(lines);
+    return newLines;
 }
 
 
 
-size_t FindGap(unsigned int *histo, size_t range){
+size_t FindGap(unsigned int *histo, size_t histoSize, size_t range){
     size_t current = 0;
     for (size_t i = 0; i <= range*2; i++)
         current += histo[i];
 
     size_t gap = range;
     size_t max = current;
-    for (size_t i = range+2; i < 3000-range; i++){
+    for (size_t i = range+2; i < histoSize-range; i++){
         current -= histo[i-range-1];
         current += histo[i+range];
         if (current > max){
@@ -438,6 +401,42 @@ size_t FindGap(unsigned int *histo, size_t range){
     }
     return gap;
 }
+
+
+void Remove(unsigned int *accumulator, Line *lines, size_t capacity, size_t *size, size_t gap){
+    size_t dGap = 40;
+    while (dGap > 0 && *size > 10){
+        //Vertical Lines
+        char inSudoku = 0;
+        Line *prev = &lines[0];
+        for (size_t i = 1; i < capacity; i++){
+            Line *curr = &lines[i];
+            if (curr->value == 0){
+                continue;
+            }
+
+            size_t dRho = (curr->rho - prev->rho) % gap;
+            if (dRho > dGap && dRho < gap-dGap){
+                if (!inSudoku){
+                    prev->value = 0;
+                    accumulator[prev->accuPos] = 0;
+                }
+                else {
+                    curr->value = 0;
+                    accumulator[curr->accuPos] = 0;
+                }
+                (*size)--;
+            }
+            else {
+                inSudoku = 1;
+            }
+            prev = curr;
+        }
+        dGap--;
+    }
+}
+
+
 
 
 
@@ -539,8 +538,8 @@ SDL_Surface *RotateSurface(SDL_Surface *surface, float angle) {
 
 
 
-unsigned int *DetectIntersections(SDL_Surface *surface,
-                                  unsigned int *accumulator) {
+unsigned int *CreateSpace(SDL_Surface *surface,
+                                  Line* lines) {
     /**
      * Detect the intersections of every lines in the accumulator by drawing
      * them in the normal space Return the normal space
@@ -554,32 +553,20 @@ unsigned int *DetectIntersections(SDL_Surface *surface,
     if (normalSpace == NULL)
         errx(1, "Could not create normalSpace");
 
-    int rho = 0;
-    int theta = 0;
-    for (size_t i = 0; i < accumulatorSize; i++) {
+    Line *current = lines;
+    while (current->value != 0){
+        double thetaRad = current->theta * pi / 180;
+        double a = cos(thetaRad);
+        double b = sin(thetaRad);
+        int x0 = a * current->rho;
+        int y0 = b * current->rho;
+        int x1 = x0 + 3000 * (-b);
+        int y1 = y0 + 3000 * a;
+        int x2 = x0 - 3000 * (-b);
+        int y2 = y0 - 3000 * a;
 
-        if (accumulator[i] != 0) {
-            // convert the point in the accumulator space in a line in the
-            // normal space
-            // to do so: compute 2 point of the line and draw it
-            double thetaRad = theta * pi / 180;
-            double a = cos(thetaRad);
-            double b = sin(thetaRad);
-            int x0 = a * rho;
-            int y0 = b * rho;
-            int x1 = x0 + 3000 * (-b);
-            int y1 = y0 + 3000 * a;
-            int x2 = x0 - 3000 * (-b);
-            int y2 = y0 - 3000 * a;
-
-            ComputeLine(normalSpace, w, h, x1, y1, x2, y2);
-        }
-
-        theta++;
-        if (theta == maxTheta) {
-            theta = 0;
-            rho++;
-        }
+        ComputeLine(normalSpace, w, h, x1, y1, x2, y2);
+        current+=1;
     }
     return normalSpace;
 }

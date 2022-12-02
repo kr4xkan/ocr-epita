@@ -21,9 +21,10 @@ int CheckPeak(unsigned int *accumulator, size_t accumulatorSize, size_t i,
         unsigned int val);
 int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
         unsigned int *accumulator);
-void FilterLines(unsigned int *accumulator, size_t accumulatorSize,
+Line* FilterLines(unsigned int *accumulator, size_t accumulatorSize,
                                                     Line* lines);
-size_t FindGap(unsigned int *histo, size_t range);
+size_t FindGap(unsigned int *histo, size_t histoSize, size_t range);
+void Remove(unsigned int *accumulator, Line *lines, size_t capacity, size_t *size, size_t gap);
 
 
 
@@ -34,8 +35,8 @@ SDL_Surface *RotateSurface(SDL_Surface *origine, float angle);
 
 
 // -----------------------------Intersections--------------------------------------
-unsigned int *DetectIntersections(SDL_Surface *surface, 
-                                        unsigned int *accumulator);
+unsigned int *CreateSpace(SDL_Surface *surface,
+                                  Line* lines);
 void ComputeLine(unsigned int *linesArray, long int w, long int h, long int x1,
                  long int y1, long int x2, long int y2);
 

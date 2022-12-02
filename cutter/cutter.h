@@ -15,14 +15,13 @@ typedef struct Line{
 
 unsigned int *CreateAccumulator(SDL_Surface *surface);
 void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator);
-unsigned int FindMinPeak(unsigned int *accumulator, size_t accumulatorSize);
-Line* DetectLines(unsigned int *accumulator, size_t accumulatorSize);
-int CheckPeak(unsigned int *accumulator, size_t accumulatorSize, size_t i,
+unsigned int FindMinPeak(unsigned int *accumulator);
+Line* DetectLines(unsigned int *accumulator);
+int CheckPeak(unsigned int *accumulator, size_t i,
         unsigned int val);
 int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
         unsigned int *accumulator);
-Line* FilterLines(unsigned int *accumulator, size_t accumulatorSize,
-                                                    Line* lines);
+Line* FilterLines(unsigned int *accumulator, Line* lines);
 size_t FindGap(unsigned int *histo, size_t histoSize, size_t range);
 void Remove(unsigned int *accumulator, Line *lines, size_t capacity, size_t *size, size_t gap);
 

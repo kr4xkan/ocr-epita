@@ -40,10 +40,9 @@ Intersection* DetectIntersections(SDL_Surface *surface, unsigned int *normalSpac
         if (i % w == 0)
             y++;
     }
-    if (TryCrop(surface, len, coords, nbIntersection))
-        return;
+    return coords;
 
-
+/*
     // Remove the Intersections that are not on white points
     x = 0, y = 0;
     while (coords[y*len].x){
@@ -69,10 +68,38 @@ Intersection* DetectIntersections(SDL_Surface *surface, unsigned int *normalSpac
         y++;
         x = 1;
     }
-    TryCrop(surface, len, coords, nbIntersection);
+    CropSquares(surface, len, coords, nbIntersection);
 
     free(coords);
+    */
 }
+
+void CropSquares(SDL_Surface *surface, Intersection *coords, size_t len){
+
+    for (size_t y = 0; y < 9; y++){
+        for (size_t x = 0; x < 9; x++){
+            Intersection current = coords[y*len + x];
+
+            unsigned int squareWidth = coords[y*len + x+1].x - current.x;
+            unsigned int squareHeight = coords[(y+1)*len + x].y - current.y;
+
+            SDL_Surface *square = CropSurface(surface, current, squareWidth,
+                    squareHeight);
+
+            char name[] = {x+'1', '-', y+'1', '.', 'p', 'n', 'g', '\0'};
+            char *newStr = malloc((strlen(name) + 15) * sizeof(char));
+            strcpy(newStr, "squares/");
+            strcat(newStr, name);
+            IMG_SavePNG(square, newStr);
+            SDL_FreeSurface(square);
+            free(newStr);
+        }
+    }
+    printf("All squares have been cropped\n");
+    printf("gap:%lu\n", GapSize(surface, coords, len));
+}
+
+
 
 SDL_Surface *CropSurface(SDL_Surface *surface, Intersection current, int width,
                          int height){
@@ -87,65 +114,23 @@ SDL_Surface *CropSurface(SDL_Surface *surface, Intersection current, int width,
 }
 
 
-char TryCrop(SDL_Surface *surface, size_t len, Intersection *coords,
-                                                    size_t nbIntersection){
 
-    if (nbIntersection != 100){
-        printf("Couldn't crop\n");
-        return 0;
-    }
-    
-    size_t x = 1, y = 1;
-    while (coords[y*len].x){
-        while (coords[y*len + x].x) {
+size_t GapSize(SDL_Surface *surface, Intersection *coords, size_t len){
+    size_t *histo = calloc(surface->w, sizeof(size_t));
+    for (size_t y = 0; y < 9; y++){
+        for (size_t x = 0; x < 9; x++){
             Intersection current = coords[y*len + x];
 
-            unsigned int squareWidth = current.x - coords[y*len + x-1].x;
-            unsigned int squareHeight = current.y - coords[(y-1)*len + x].y;
-
-            SDL_Surface *square = CropSurface(surface, current, squareWidth,
-                    squareHeight);
-
-            char name[] = {x+'0', '-', y+'0', '.', 'p', 'n', 'g', '\0'};
-
-            char *newStr = malloc((strlen(name) + 15) * sizeof(char));
-            strcpy(newStr, "squares/");
-            strcat(newStr, name);
-            IMG_SavePNG(square, newStr);
-            SDL_FreeSurface(square);
-            free(newStr);
-
-            x++;
-        }
-        y++;
-        x = 1;
-    }
-    printf("All squares have been cropped\n");
-    return 1;
-
-}
-
-
-
-size_t Ouaip(SDL_Surface *surface, Intersection *coords, size_t len){
-    unsigned int *histo = calloc(surface->w, sizeof(unsigned int));
-    size_t x = 1, y = 1;
-    while (coords[y*len].x){
-        while (coords[y*len + x].x) {
-            Intersection current = coords[y*len + x];
-
-            size_t squareWidth = current.x - coords[y*len + x-1].x;
-            size_t squareHeight = current.y - coords[(y-1)*len + x].y;
+            unsigned int squareWidth = coords[y*len + x+1].x - current.x;
+            unsigned int squareHeight = coords[(y+1)*len + x].y - current.y;
             histo[squareWidth]++;
             histo[squareHeight]++;
-            x++;
         }
-        y++;
-        x = 1;
     }
 
+    
     size_t current = 0;
-    size_t range = 3;
+    size_t range = 4;
     for (size_t i = 0; i <= range*2; i++)
         current += histo[i];
     
@@ -157,6 +142,11 @@ size_t Ouaip(SDL_Surface *surface, Intersection *coords, size_t len){
         if (current > max){
             gap = i;
             max = current;
+        }
+    }
+    for (size_t i = 0; i < (size_t)surface->w; i++){
+        if (histo[i] != 0){
+            printf("i:%lu  histo[i]=%lu\n", i%gap, histo[i]);
         }
     }
     free(histo);

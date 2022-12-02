@@ -90,38 +90,56 @@ int MainCutter(char *path) {
 
 
     unsigned int *accumulator = CreateAccumulator(surface);
-    Line *lines = DetectLines(accumulator, accumulatorSize);
+    Line *lines = DetectLines(accumulator);
 
     SDL_Surface *surfaceRotated = CheckRotation(surface, accumulator);
 
     if (surfaceRotated == NULL) {
-        lines = FilterLines(accumulator, accumulatorSize, lines);
+        lines = FilterLines(accumulator, lines);
+
         unsigned int *space = CreateSpace(surface, lines);
 
         size_t len = 0;
-        Intersection *intersections = DetectIntersections(surfaceRotated, space, &len);
+        Intersection *intersections = DetectIntersections(surface, space, &len);
+        printf("first:  x=%u  y=%u\n", intersections[0].x, intersections[0].y);
+        CropSquares(surface, intersections, len);
+
 
         DrawLines(surface, accumulator, surface->pixels);
         DrawIntersections(surface, space);
         IMG_SavePNG(surface, "result.png");
 
         free(space);
+        free(intersections);
     }
     else{
         unsigned int *accumulatorRotated = CreateAccumulator(surfaceRotated);
-        Line *lines = DetectLines(accumulatorRotated, accumulatorSize);
-        lines = FilterLines(accumulatorRotated, accumulatorSize, lines);
+        Line *linesRotated = DetectLines(accumulatorRotated);
+        linesRotated = FilterLines(accumulatorRotated, linesRotated);
+    
+        unsigned int *spaceRotated = CreateSpace(surfaceRotated, linesRotated);
 
-        unsigned int *space = CreateSpace(surfaceRotated, lines);
-        Intersection *intersections = DetectIntersections(surfaceRotated, space);
+        size_t len = 0;
+        Intersection *intersections = DetectIntersections(surfaceRotated, spaceRotated, &len);
+        /*
+        printf("\nGrid coordinates:\n");
+        printf("top left:  x=%u  y=%u\n", intersections[0].x, intersections[0].y);
+        printf("top right:  x=%u  y=%u\n", intersections[9].x, intersections[9].y);
+        printf("top left:  x=%u  y=%u\n", intersections[9*len].x, intersections[9*len].y);
+        printf("top right:  x=%u  y=%u\n\n", intersections[9*len+9].x, intersections[9*len+9].y);
+        */
+        CropSquares(surfaceRotated, intersections, len);
+
 
         DrawLines(surfaceRotated, accumulatorRotated, surfaceRotated->pixels);
-        DrawIntersections(surfaceRotated, space);
+        DrawIntersections(surfaceRotated, spaceRotated);
         IMG_SavePNG(surfaceRotated, "result.png");
 
-        free(space);
+
         free(accumulatorRotated);
-        free(lines);
+        free(linesRotated);
+        free(spaceRotated);
+        free(intersections);
         SDL_FreeSurface(surfaceRotated);
     } 
 
@@ -163,7 +181,7 @@ unsigned int *CreateAccumulator(SDL_Surface *surface) {
     }
 
     FillAcumulator(surface, accumulator);
-    minPeak = FindMinPeak(accumulator, accumulatorSize);
+    minPeak = FindMinPeak(accumulator);
 
     return accumulator;
 }
@@ -194,7 +212,7 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator) {
     }
 }
 
-unsigned int FindMinPeak(unsigned int *accumulator, size_t accumulatorSize) {
+unsigned int FindMinPeak(unsigned int *accumulator) {
     /**
      * Compute the minimal value for a point to be consider a peak in the
      * accumulator
@@ -207,7 +225,7 @@ unsigned int FindMinPeak(unsigned int *accumulator, size_t accumulatorSize) {
     return maxPeak * ratio;
 }
 
-Line* DetectLines(unsigned int *accumulator, size_t accumulatorSize) {
+Line* DetectLines(unsigned int *accumulator){
     /**
      * Remove lines that are too similar to another one
      */
@@ -223,7 +241,7 @@ Line* DetectLines(unsigned int *accumulator, size_t accumulatorSize) {
     for (size_t i = 0; i < accumulatorSize; i++) {
 
         unsigned int val = accumulator[i];
-        if (CheckPeak(accumulator, accumulatorSize, i, val)) {
+        if (CheckPeak(accumulator, i, val)) {
             Line line = {theta, rho, val, i};
             
             if (!AlreadyExist(lines, line, len, maxGap, accumulator)) {
@@ -246,7 +264,7 @@ Line* DetectLines(unsigned int *accumulator, size_t accumulatorSize) {
     return lines;
 }
 
-int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
+int AlreadyExist(Line *lines, Line line, size_t len, int maxGap, 
         unsigned int *accumulator) {
     /**
      * Check if a line is similar to an already existing one
@@ -274,8 +292,7 @@ int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
     return 0;
 }
 
-int CheckPeak(unsigned int *accumulator, size_t accumulatorSize, size_t i,
-              unsigned int val) {
+int CheckPeak(unsigned int *accumulator, size_t i, unsigned int val) {
     if (val < minPeak)
         return 0;
     // Left neighbour
@@ -294,8 +311,7 @@ int CheckPeak(unsigned int *accumulator, size_t accumulatorSize, size_t i,
 }
 
 
-Line* FilterLines(unsigned int *accumulator, size_t accumulatorSize,
-                                                    Line* lines){
+Line* FilterLines(unsigned int *accumulator, Line* lines){
 
     size_t len = 0;
     while (lines[len].accuPos != accumulatorSize+1)
@@ -316,9 +332,10 @@ Line* FilterLines(unsigned int *accumulator, size_t accumulatorSize,
     for (size_t i = 0; i < len; i++){
         Line line = lines[i];
 
-        if (line.theta % 90 >= 2 && line.theta % 90 <= 88) accumulator[line.accuPos] = 0;            
+        if (line.theta % 90 >= 2 && line.theta % 90 <= 88) 
+            accumulator[line.accuPos] = 0;            
         else{
-            if(line.theta < 2){
+            if(line.theta < 2 || line.theta > 178){
                 vertLines[vertLen] = line;
                 vertLen++;
                 if (vertLen == 1)
@@ -329,6 +346,7 @@ Line* FilterLines(unsigned int *accumulator, size_t accumulatorSize,
                 }
             }
             else{
+                //printf("theta:%u  rho:%u\n", line.theta, line.rho);
                 horiLines[horiLen] = line;
                 horiLen++;
                 if (horiLen == 1)
@@ -341,8 +359,6 @@ Line* FilterLines(unsigned int *accumulator, size_t accumulatorSize,
         }
     }
 
-
-
     size_t range = 10;
     size_t vertCapacity = vertLen, horiCapacity = horiLen;
     while (range > 0 && (horiLen > 10 || vertLen > 10)){
@@ -352,9 +368,8 @@ Line* FilterLines(unsigned int *accumulator, size_t accumulatorSize,
 
         range--;
     }
-    printf("vert:%lu hori:%lu\n", vertLen, horiLen);
-
-
+    printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
+    
     Line *newLines = malloc((vertLen*horiLen+1)*sizeof(Line));
     size_t i = 0, j = 0;
     while (i < vertCapacity){
@@ -657,7 +672,6 @@ void PrintMat(unsigned int *accumulator) {
         }
     }
     printf("\n");
-    printf("lines detectes: %lu\n", count);
 }
 
 void DrawLines(SDL_Surface *surface, unsigned int *accumulator, int *pixels) {

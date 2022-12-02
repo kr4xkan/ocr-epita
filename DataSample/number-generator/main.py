@@ -8,7 +8,7 @@ import sys
 
 WHITE = (255,255,255,255)
 BLACK = (0,0,0,255)
-DISPLACEMENT = 4
+DISPLACEMENT = 1
 RANDOM_NOISE = 5
 
 width = 28
@@ -36,7 +36,7 @@ def binarize(img):
     return img
 
 def create_image(num, i):
-    rotate = random.randrange(-20, 20)
+    rotate = random.randrange(-2, 2)
     col_rand = random.randrange(200, 255)
     coltext_rand = random.randrange(0, 90)
     greycol = (255, 255, 255, 255)
@@ -47,12 +47,12 @@ def create_image(num, i):
 
     draw = ImageDraw.Draw(img)
 
-    for k in range(2):
-        x = random.randrange(0, width)
-        y = random.randrange(0, height)
-        x_size = random.randrange(1, 2)
-        y_size = random.randrange(1, 2)
-        draw.rectangle((x,y,x+x_size,y+y_size), fill=BLACK)
+    # for k in range(2):
+    #     x = random.randrange(0, width)
+    #     y = random.randrange(0, height)
+    #     x_size = random.randrange(1, 2)
+    #     y_size = random.randrange(1, 2)
+    #     draw.rectangle((x,y,x+x_size,y+y_size), fill=BLACK)
     
     imgx = img.filter(ImageFilter.GaussianBlur(0.8))
     drawx = ImageDraw.Draw(imgx)
@@ -67,7 +67,7 @@ def create_image(num, i):
 
     imgx = imgx.rotate(-rotate, fillcolor=greycol)
 
-    blur = binarize(imgx.filter(ImageFilter.GaussianBlur(0.4)))
+    blur = imgx.filter(ImageFilter.GaussianBlur(0.4))
     filename = hashlib.sha256(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[:8]
     blur.save("./output/"+str(num)+"__"+filename+".bmp", format="BMP")
 

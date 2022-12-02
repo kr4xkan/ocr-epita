@@ -32,8 +32,8 @@ void free_network(NeuralNetwork* nn) {
 }
 
 void free_layer(Layer* layer) {
-    free_matrix(&layer->Z);
     free_matrix(&layer->A);
+    free_matrix(&layer->Z);
     free_matrix(&layer->W);
     free_matrix(&layer->B);
 }
@@ -83,8 +83,8 @@ NeuralNetwork new_network(double learning_rate) {
     NeuralNetwork nn;
     nn.layer_count = 3;
     nn.learning_rate = learning_rate;
-    nn.decay = 0.00000004;
-    nn.momentum = 0.05;
+    nn.decay = 0.000001;
+    nn.momentum = 0.5;
     nn.updates.current_learning_rate = nn.learning_rate;
     nn.updates.iterations = 0;
     nn.layers = calloc(nn.layer_count, sizeof(Layer));
@@ -157,7 +157,7 @@ NeuralNetwork deserialize_network(Buffer* buf) {
 
 void print_stat(NeuralNetwork* nn, double error) {
     fprintf(nn->csv, "%f,%f\n", error, nn->updates.current_learning_rate);
-    fflush(nn->csv);;
+    fflush(nn->csv);
 }
 
 void forward_pass(NeuralNetwork* nn) {
@@ -184,6 +184,7 @@ double backward_pass(NeuralNetwork* nn, Matrix expected) {
         nn->learning_rate * (1 / (1 + nn->decay * nn->updates.iterations));
 
     sub(nn->layers[2].A, expected, nn->updates.dZ2);
+    //multiply_ew(nn->updates.dZ2, nn->updates.dZ2, nn->updates.dZ2);
     //crossentropy(nn->layers[2].A, expected, nn->updates.dZ2);
     Matrix A1T = transpose(nn->layers[1].A);
     multiply(nn->updates.dZ2, A1T, nn->updates.dW2);
@@ -229,16 +230,17 @@ double backward_pass(NeuralNetwork* nn, Matrix expected) {
 
 void cmd_train(int argc, char **argv) {
     if (argc != 4)
-        errx(1, "./neural-net --train"
-                "[load/new] <dataset_path> <iterations> <learning_rate>");
+        errx(1, "./neural-net --train "
+                "[load,new] <dataset_path> <iterations> <learning_rate>");
     size_t iterations = atof(argv[2]);
-    double learning_rate = atof(argv[2]);
+    double learning_rate = atof(argv[3]);
 
     NeuralNetwork nn;
     if (strcmp(argv[0], "load") == 0) {
         Buffer* buf = load_buffer("save.nrl");
         nn = deserialize_network(buf);
         free_buffer(buf);
+        printf("Loaded network from save\n");
     } else {
         nn = new_network(learning_rate);
     }
@@ -256,12 +258,51 @@ void cmd_guess(int argc, char **argv) {
     nn = deserialize_network(buf);
     free_buffer(buf);
 
-    load_image(nn.layers[0].A.v, argv[0]);
+    double* img = malloc(784 * sizeof(double));
+
+    load_image(img, argv[0]);
+    nn.layers[0].A.v = img;
     forward_pass(&nn);
 
     print_mat(nn.layers[2].A);
 
+    free(img);
     free_network(&nn);
+}
+
+void cmd_test(int argc, char **argv) {
+    if (argc != 1)
+        errx(1, "./neural-net --test <image_path>");
+
+    NeuralNetwork nn;
+    Buffer* buf = load_buffer("save.nrl");
+    nn = deserialize_network(buf);
+    free_buffer(buf);
+
+    szt len_dataset;
+    LabeledImage* dataset = load_dataset(argv[0], &len_dataset);
+
+    szt correct = 0;
+    for (size_t i = 0; i < len_dataset; i++) {
+        nn.layers[0].A.v = dataset[i].data;
+        forward_pass(&nn);
+
+        double max = nn.layers[2].A.v[0];
+        size_t max_index = 0;
+        for (size_t j = 1; j < 10; j++) {
+            if (nn.layers[2].A.v[j] > max) {
+                max_index = j;
+                max = nn.layers[2].A.v[j];
+            }
+        }
+
+        correct += max_index == dataset[i].label;
+    }
+
+    printf("%.2f%% correct (%zu/%zu)\n", (float)correct*100/len_dataset, correct, len_dataset);
+
+    free_network(&nn);
+    free(dataset);
 }
 
 int main(int argc, char **argv) {
@@ -275,6 +316,8 @@ int main(int argc, char **argv) {
         cmd_train(argc - 2, argv + 2);
     } else if (strcmp(argv[1], "--guess") == 0) {
         cmd_guess(argc - 2, argv + 2);
+    } else if (strcmp(argv[1], "--test") == 0) {
+        cmd_test(argc - 2, argv + 2);
     }
 
     return 0;
@@ -298,7 +341,7 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
         // }
 
         double error = 0;
-        for (szt j = 0; j < 240; j++) {
+        for (szt j = 0; j < len_dataset; j++) {
             LabeledImage img = dataset[j];
             expected.v[prev] = 0;
             expected.v[img.label] = 1;
@@ -307,7 +350,7 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
             forward_pass(&nn);
             error += backward_pass(&nn, expected);
         }
-        error /= 240;
+        error /= len_dataset;
         print_stat(&nn, error);
         if (i % 10 == 0) {
             printf("[%zu] Error: %.4f    LR: %f\n", i, error, nn.updates.current_learning_rate);
@@ -322,7 +365,6 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
     free_buffer(buf);
 
     free_matrix(&expected);
-    free_network(&nn);
     free(dataset);
 }
 

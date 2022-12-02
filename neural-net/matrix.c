@@ -108,8 +108,7 @@ Matrix new_random_matrix(size_t n, size_t p) {
 }
 
 void free_matrix(Matrix* m) {
-    if (m != NULL)
-        free(m->v);
+    free(m->v);
 }
 
 Matrix transpose(Matrix a) {

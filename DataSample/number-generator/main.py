@@ -9,7 +9,7 @@ import sys
 WHITE = (255,255,255,255)
 BLACK = (0,0,0,255)
 DISPLACEMENT = 4
-RANDOM_NOISE = 30
+RANDOM_NOISE = 5
 
 width = 28
 height = 28
@@ -47,7 +47,7 @@ def create_image(num, i):
 
     draw = ImageDraw.Draw(img)
 
-    for k in range(5):
+    for k in range(2):
         x = random.randrange(0, width)
         y = random.randrange(0, height)
         x_size = random.randrange(1, 2)
@@ -60,9 +60,10 @@ def create_image(num, i):
     d_x = random.randrange(-DISPLACEMENT, DISPLACEMENT)
     d_y = random.randrange(-DISPLACEMENT, DISPLACEMENT)
 
-    fontname = fonts[random.randrange(0, lenfont)]
-    font = ImageFont.truetype(fontname, 24)
-    drawx.text((width/2+d_x,height/2+d_y), str(num), font=font, anchor="mm", fill=greycoltext)
+    if num != 0:
+        fontname = fonts[random.randrange(0, lenfont)]
+        font = ImageFont.truetype(fontname, 24)
+        drawx.text((width/2+d_x,height/2+d_y), str(num), font=font, anchor="mm", fill=greycoltext)
 
     imgx = imgx.rotate(-rotate, fillcolor=greycol)
 

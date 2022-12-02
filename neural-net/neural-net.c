@@ -55,9 +55,9 @@ Layer new_layer(
 
 // size - activation - W - B
 void serialize_layer(Buffer* buf, Layer* layer) {
-    size_t required_size = sizeof(enum ActivationFunction) + sizeof(int);
+    size_t required_size = sizeof(enum ActivationFunction) + sizeof(size_t);
     reserve_space(buf, required_size);
-    write_buffer(buf, &layer->size, sizeof(int));
+    write_buffer(buf, &layer->size, sizeof(size_t));
     write_buffer(buf, &layer->activation, sizeof(enum ActivationFunction));
     serialize_matrix(buf, &layer->W);
     serialize_matrix(buf, &layer->B);
@@ -65,8 +65,8 @@ void serialize_layer(Buffer* buf, Layer* layer) {
 
 Layer deserialize_layer(Buffer* buf) {
     Layer l;
-    int i;
-    read_buffer(buf, &i, sizeof(int));
+    size_t i;
+    read_buffer(buf, &i, sizeof(size_t));
     l.size = i;
     read_buffer(buf, &i, sizeof(enum ActivationFunction));
     l.activation = i;
@@ -105,11 +105,11 @@ NeuralNetwork new_network(int argc, char** argv) {
 
 // layer_count - iterations - current_learning_rate - learning_rate - decay - momentum - layers
 void serialize_network(Buffer* buf, NeuralNetwork* nn) {
-    size_t required_size = sizeof(double) * 4 + sizeof(int) * 2;
+    size_t required_size = sizeof(double) * 4 + sizeof(size_t) * 2;
     reserve_space(buf, required_size);
 
-    write_buffer(buf, &nn->layer_count, sizeof(int));
-    write_buffer(buf, &nn->updates.iterations, sizeof(int));
+    write_buffer(buf, &nn->layer_count, sizeof(size_t));
+    write_buffer(buf, &nn->updates.iterations, sizeof(size_t));
     write_buffer(buf, &nn->updates.current_learning_rate, sizeof(double));
     write_buffer(buf, &nn->learning_rate, sizeof(double));
     write_buffer(buf, &nn->decay, sizeof(double));
@@ -121,10 +121,10 @@ void serialize_network(Buffer* buf, NeuralNetwork* nn) {
 
 NeuralNetwork deserialize_network(Buffer* buf) {
     NeuralNetwork nn;
-    int i;
-    read_buffer(buf, &i, sizeof(int));
+    size_t i;
+    read_buffer(buf, &i, sizeof(size_t));
     nn.layer_count = i;
-    read_buffer(buf, &i, sizeof(int));
+    read_buffer(buf, &i, sizeof(size_t));
     nn.updates.iterations = i;
     read_buffer(buf, &nn.updates.current_learning_rate, sizeof(double));
     read_buffer(buf, &nn.learning_rate, sizeof(double));

@@ -67,20 +67,20 @@ void read_buffer(Buffer* buf, void* dest, size_t size) {
 
 void serialize_matrix(Buffer* buf, Matrix* x) {
     size_t len = x->n * x->p;
-    size_t required_size = len * sizeof(double) + 2 * sizeof(int);
+    size_t required_size = len * sizeof(double) + 2 * sizeof(size_t);
     reserve_space(buf, required_size);
 
-    write_buffer(buf, &x->n, sizeof(int));
-    write_buffer(buf, &x->p, sizeof(int));
+    write_buffer(buf, &x->n, sizeof(size_t));
+    write_buffer(buf, &x->p, sizeof(size_t));
     write_buffer(buf, x->v, len * sizeof(double));
 }
 
 Matrix deserialize_matrix(Buffer* buf) {
     Matrix m;
-    int i;
-    read_buffer(buf, &i, sizeof(int));
+    size_t i;
+    read_buffer(buf, &i, sizeof(size_t));
     m.n = i;
-    read_buffer(buf, &i, sizeof(int));
+    read_buffer(buf, &i, sizeof(size_t));
     m.p = i;
 
     size_t len = m.n*m.p;

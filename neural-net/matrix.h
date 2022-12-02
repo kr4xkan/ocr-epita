@@ -45,4 +45,5 @@ double sum_abs(Matrix a);
 void relu(Matrix a, Matrix res);
 Matrix relu_deriv(Matrix a);
 void softmax(Matrix a, Matrix res);
+void crossentropy(Matrix a, Matrix expected, Matrix res);
 void print_mat(Matrix a);

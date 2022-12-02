@@ -56,12 +56,12 @@ void reserve_space(Buffer* buf, size_t size) {
 void write_buffer(Buffer* buf, void* value, size_t size) {
     memcpy(buf->data + buf->size, value, size);
     buf->size += size;
-    printf("wrote %zu bytes\n", size);
+    //printf("wrote %zu bytes\n", size);
 }
 
 void read_buffer(Buffer* buf, void* dest, size_t size) {
     memcpy(dest, buf->data + buf->head, size);
-    printf("read %zu bytes at %zu\n", size, buf->head);
+    //printf("read %zu bytes at %zu\n", size, buf->head);
     buf->head += size;
 }
 
@@ -229,6 +229,19 @@ void softmax(Matrix a, Matrix res) {
         for (size_t i = 0; i < a.n; i++) {
             res.v[i * a.p + j] /= sum;
         }
+    }
+}
+
+void crossentropy(Matrix a, Matrix expected, Matrix res) {
+    for (size_t i = 0; i < a.n * a.p; i++) {
+        double val = a.v[i];
+        if (val > 1 - 1e-4) {
+            val = 1 - 1e-4;
+        } else if (val < 1e-4) {
+            val = 1e-4;
+        }
+        res.v[i] = -log2(val);
+        printf("%f\n", res.v[i]);
     }
 }
 

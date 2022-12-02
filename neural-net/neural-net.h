@@ -52,7 +52,7 @@ typedef struct NeuralNetwork {
 } NeuralNetwork;
 
 void serialize_layer(Buffer* buf, Layer* layer);
-NeuralNetwork new_network(int argc, char** argv);
+NeuralNetwork new_network(double learning_rate);
 Layer new_layer(enum ActivationFunction activation, size_t num_nodes, size_t prev_num_nodes);
 void free_network(NeuralNetwork* nn);
 void free_layer(Layer* layer);
@@ -65,6 +65,8 @@ int main_xor(char *path);
 void save_network(NeuralNetwork *nn);
 
 void load_network(NeuralNetwork *nn, char *path);
+
+void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterations);
 
 void setup_network(NeuralNetwork *nn, int *layers_node_count, int batch_size,
                    float learning_rate, int layer_count);

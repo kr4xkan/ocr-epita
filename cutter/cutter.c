@@ -15,7 +15,7 @@
 #define maxTheta 360
 
 // min value needed by a pixel to be counted as detected
-int minAverage = 200;
+int minAverage = 50;
 
 // minPeak = maxPeak (biggest line) * ratio
 float ratio = 0.33;
@@ -80,7 +80,7 @@ int MainCutter(char *path) {
     SDL_Surface *surface;
     if (strcmp(path, "0") == 0){
         printf("Using default image\n");
-        surface = LoadImage("../DataSample/cutter/og1rotated.png");
+        surface = LoadImage("../DataSample/cutter/1rotated.png");
     }
     else{
         surface = LoadImage(path);
@@ -101,7 +101,13 @@ int MainCutter(char *path) {
 
         size_t len = 0;
         Intersection *intersections = DetectIntersections(surface, space, &len);
-        printf("first:  x=%u  y=%u\n", intersections[0].x, intersections[0].y);
+        /*
+        printf("\nGrid coordinates:\n");
+        printf("top left:  x=%u  y=%u\n", intersections[0].x, intersections[0].y);
+        printf("top right:  x=%u  y=%u\n", intersections[9].x, intersections[9].y);
+        printf("top left:  x=%u  y=%u\n", intersections[9*len].x, intersections[9*len].y);
+        printf("top right:  x=%u  y=%u\n\n", intersections[9*len+9].x, intersections[9*len+9].y);
+        */
         CropSquares(surface, intersections, len);
 
 
@@ -186,6 +192,7 @@ unsigned int *CreateAccumulator(SDL_Surface *surface) {
     return accumulator;
 }
 
+
 void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator) {
     /**
      * Check for every point in the image and draw it's sinus curve in the
@@ -198,7 +205,7 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator) {
         for (size_t x = 0; x < (size_t)surface->w; x++) {
 
             GetPixelColor(surface, x, y, &r, &g, &b);
-            if ((r + g + b) / 3 >= minAverage) {
+            if ((r + g + b) / 3 <= minAverage) {
                 
                 // compute all the values of rho and theta for the given point
                 for (size_t theta = 0; theta < maxTheta; theta++) {
@@ -533,6 +540,7 @@ SDL_Surface *RotateSurface(SDL_Surface *surface, float angle) {
     mx = surface->w / 2;
     my = surface->h / 2;
 
+    Uint32 white = 0xFFFFFFFF;
     for (int j = 0; j < dest->h; j++) {
         for (int i = 0; i < dest->w; i++) {
 
@@ -543,6 +551,9 @@ SDL_Surface *RotateSurface(SDL_Surface *surface, float angle) {
             if (bx >= 0 && bx < surface->w && by >= 0 && by < surface->h) {
                 Uint32 color = GetPixelData(surface, bx, by);
                 SetPixelData(dest, i, j, color);
+            }
+            else{
+                SetPixelData(dest, i, j, white);
             }
         }
     }

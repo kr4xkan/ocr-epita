@@ -17,8 +17,7 @@ unsigned int *CreateAccumulator(SDL_Surface *surface);
 void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator);
 unsigned int FindMinPeak(unsigned int *accumulator);
 Line* DetectLines(unsigned int *accumulator);
-int CheckPeak(unsigned int *accumulator, size_t i,
-        unsigned int val);
+int CheckPeak(unsigned int *accumulator, size_t i, unsigned int val);
 int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
         unsigned int *accumulator);
 Line* FilterLines(unsigned int *accumulator, Line* lines);

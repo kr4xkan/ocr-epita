@@ -17,13 +17,15 @@ Intersection* DetectIntersections(SDL_Surface *surface, unsigned int *normalSpac
     size_t len = 200;
     *length = len;
     Intersection *coords = calloc(len*len, sizeof(Intersection));
-    size_t nbIntersection = 0;
+    size_t nbIntersections = 0;
 
     //Fill the arrays with the intersections
     int arrayX = 0, arrayY = -1;
     unsigned int x = w + 1;
     unsigned int y = 0;
-    for (int i = 0; i < w * h; i++) {
+
+    size_t i = 0;
+    while (i < w*h && nbIntersections < 100){
         if (normalSpace[i] >= 2) {
             unsigned int xi = i % w;
             if (xi < x) {
@@ -35,10 +37,26 @@ Intersection* DetectIntersections(SDL_Surface *surface, unsigned int *normalSpac
             x = xi;
             coords[arrayY*len + arrayX].x = x;
             coords[arrayY*len + arrayX].y = y;
-            nbIntersection++;
+            nbIntersections++;
         }
         if (i % w == 0)
             y++;
+
+        i++;
+    }
+    printf("nbIntersections:%lu\n", nbIntersections);
+
+
+
+    y = 0, x = 0;
+    while (coords[y*len].x != 0){
+        while (coords[y*len+x].x != 0){
+//            printf("(%u, %u)  ", x, y);
+  //          printf("x:%u  y:%u\n", coords[y*len+x].x, coords[y*len+x].y);
+            x++;
+        }
+        y++;
+        x = 0;
     }
     return coords;
 }
@@ -89,6 +107,7 @@ void CropSquares(SDL_Surface *surface, Intersection *coords, size_t len){
 
             SDL_Surface *square = CropSurface(surface, current, squareWidth,
                     squareHeight);
+
 
             char name[] = {x+'1', '-', y+'1', '.', 'p', 'n', 'g', '\0'};
             char *newStr = malloc((strlen(name) + 15) * sizeof(char));

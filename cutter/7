@@ -110,7 +110,7 @@ int MainCutter(char *path) {
         printf("top left:  x=%u  y=%u\n", intersections[9*len].x, intersections[9*len].y);
         printf("top right:  x=%u  y=%u\n\n", intersections[9*len+9].x, intersections[9*len+9].y);
         */
-        //CropSquares(surface, intersections, len);
+        CropSquares(surface, intersections, len);
 
 
         DrawLines(surface, accumulator, surface->pixels);
@@ -136,7 +136,7 @@ int MainCutter(char *path) {
         printf("top left:  x=%u  y=%u\n", intersections[9*len].x, intersections[9*len].y);
         printf("top right:  x=%u  y=%u\n\n", intersections[9*len+9].x, intersections[9*len+9].y);
         */
-        //CropSquares(surfaceRotated, intersections, len);
+        CropSquares(surfaceRotated, intersections, len);
 
 
         DrawLines(surfaceRotated, accumulatorRotated, surfaceRotated->pixels);
@@ -355,6 +355,7 @@ Line* FilterLines(unsigned int *accumulator, Line* lines){
                 }
             }
             else{
+                //printf("theta:%u  rho:%u\n", line.theta, line.rho);
                 horiLines[horiLen] = line;
                 horiLen++;
                 if (horiLen == 1)
@@ -373,6 +374,7 @@ Line* FilterLines(unsigned int *accumulator, Line* lines){
         size_t gap = FindGap(histo, histoSize, range);
         Remove(accumulator, vertLines, vertCapacity, &vertLen, gap);
         Remove(accumulator, horiLines, horiCapacity, &horiLen, gap);
+
         range--;
     }
     printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
@@ -433,7 +435,7 @@ void Remove(unsigned int *accumulator, Line *lines, size_t capacity, size_t *siz
         Line *prev = &lines[0];
         for (size_t i = 1; i < capacity; i++){
             Line *curr = &lines[i];
-            if (curr->value == 0 || prev->value == 0){
+            if (curr->value == 0){
                 continue;
             }
 

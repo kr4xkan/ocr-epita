@@ -20,5 +20,6 @@ preprocessing: preprocessing.o
 clean:
 	${RM} ${OBJ}
 	${RM} ${EXE}
+	rm *.png
 
 # END

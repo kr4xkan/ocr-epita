@@ -69,8 +69,7 @@ int otsu(SDL_Surface *img, int w, int h) {
             threshold = i;
         }
     }
-    printf("%i\n",threshold);
-    return threshold - 15;
+    return threshold - 11;
 }
 
 void dumb_bin(SDL_Surface *surface) {

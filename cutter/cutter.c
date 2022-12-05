@@ -102,7 +102,6 @@ int MainCutter(char *path) {
         printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
 
         unsigned int *space = CreateSpace(surface, lines);
-
         Intersection *intersections = FindIntersections(surface, space, vertLen, horiLen);
         //SEND INTERSECTIONS TO UI FOR MANUAL VALIDATION
        
@@ -110,9 +109,9 @@ int MainCutter(char *path) {
         
 
 
-        DrawLines(surface, accumulator, surface->pixels);
-        DrawIntersections(surface, space);
-        IMG_SavePNG(surface, "result.png");
+        //DrawLines(surface, accumulator, surface->pixels);
+        //DrawIntersections(surface, space);
+        //IMG_SavePNG(surface, "result.png");
 
         free(space);
         free(intersections);
@@ -126,11 +125,10 @@ int MainCutter(char *path) {
         printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
     
         unsigned int *spaceRotated = CreateSpace(surfaceRotated, linesRotated);
-
         Intersection *intersections = FindIntersections(surfaceRotated, spaceRotated, vertLen, horiLen);
         //SEND INTERSECTIONS TO UI FOR MANUAL VALIDATION
-        CropSquares(surfaceRotated, intersections, vertLen, horiLen);
 
+        CropSquares(surfaceRotated, intersections, vertLen, horiLen);
 
         DrawLines(surfaceRotated, accumulatorRotated, surfaceRotated->pixels);
         DrawIntersections(surfaceRotated, spaceRotated);

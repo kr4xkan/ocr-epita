@@ -97,20 +97,17 @@ int MainCutter(char *path) {
     SDL_Surface *surfaceRotated = CheckRotation(surface, accumulator);
 
     if (surfaceRotated == NULL) {
-        lines = FilterLines(accumulator, lines);
+        size_t vertLen = 0, horiLen = 0;
+        lines = FilterLines(accumulator, lines, &vertLen, &horiLen);
+        printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
 
         unsigned int *space = CreateSpace(surface, lines);
 
-        size_t len = 0;
-        Intersection *intersections = DetectIntersections(surface, space, &len);
-        /*
-        printf("\nGrid coordinates:\n");
-        printf("top left:  x=%u  y=%u\n", intersections[0].x, intersections[0].y);
-        printf("top right:  x=%u  y=%u\n", intersections[9].x, intersections[9].y);
-        printf("top left:  x=%u  y=%u\n", intersections[9*len].x, intersections[9*len].y);
-        printf("top right:  x=%u  y=%u\n\n", intersections[9*len+9].x, intersections[9*len+9].y);
-        */
-        //CropSquares(surface, intersections, len);
+        Intersection *intersections = FindIntersections(surface, space, vertLen, horiLen);
+        //SEND INTERSECTIONS TO UI FOR MANUAL VALIDATION
+       
+        CropSquares(surface, intersections, vertLen, horiLen);
+        
 
 
         DrawLines(surface, accumulator, surface->pixels);
@@ -123,20 +120,16 @@ int MainCutter(char *path) {
     else{
         unsigned int *accumulatorRotated = CreateAccumulator(surfaceRotated);
         Line *linesRotated = DetectLines(accumulatorRotated);
-        linesRotated = FilterLines(accumulatorRotated, linesRotated);
+
+        size_t vertLen = 0, horiLen = 0;
+        linesRotated = FilterLines(accumulatorRotated, linesRotated, &vertLen, &horiLen);
+        printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
     
         unsigned int *spaceRotated = CreateSpace(surfaceRotated, linesRotated);
 
-        size_t len = 0;
-        Intersection *intersections = DetectIntersections(surfaceRotated, spaceRotated, &len);
-        /*
-        printf("\nGrid coordinates:\n");
-        printf("top left:  x=%u  y=%u\n", intersections[0].x, intersections[0].y);
-        printf("top right:  x=%u  y=%u\n", intersections[9].x, intersections[9].y);
-        printf("top left:  x=%u  y=%u\n", intersections[9*len].x, intersections[9*len].y);
-        printf("top right:  x=%u  y=%u\n\n", intersections[9*len+9].x, intersections[9*len+9].y);
-        */
-        //CropSquares(surfaceRotated, intersections, len);
+        Intersection *intersections = FindIntersections(surfaceRotated, spaceRotated, vertLen, horiLen);
+        //SEND INTERSECTIONS TO UI FOR MANUAL VALIDATION
+        CropSquares(surfaceRotated, intersections, vertLen, horiLen);
 
 
         DrawLines(surfaceRotated, accumulatorRotated, surfaceRotated->pixels);
@@ -320,20 +313,18 @@ int CheckPeak(unsigned int *accumulator, size_t i, unsigned int val) {
 }
 
 
-Line* FilterLines(unsigned int *accumulator, Line* lines){
+Line* FilterLines(unsigned int *accumulator, Line* lines, size_t *vertLen, size_t *horiLen){
 
     size_t len = 0;
     while (lines[len].accuPos != accumulatorSize+1)
         len++;
-    
 
     size_t histoSize = accumulatorSize/maxTheta;
-    unsigned int *histo = calloc(histoSize, sizeof(unsigned int));
+    unsigned int *histoVert = calloc(histoSize, sizeof(unsigned int));
+    unsigned int *histoHori = calloc(histoSize, sizeof(unsigned int));
 
     Line *vertLines = calloc(len, sizeof(Line));
     Line *horiLines = calloc(len, sizeof(Line));
-    size_t vertLen = 0, horiLen = 0;
-
 
     //Filter in two separate array vertical and horizontal lines
     //Remove the others
@@ -345,39 +336,40 @@ Line* FilterLines(unsigned int *accumulator, Line* lines){
             accumulator[line.accuPos] = 0;            
         else{
             if(line.theta < 2 || line.theta > 178){
-                vertLines[vertLen] = line;
-                vertLen++;
-                if (vertLen == 1)
+                vertLines[*vertLen] = line;
+                (*vertLen)++;
+                if (*vertLen == 1)
                     rho1 = line.rho;
                 else{
-                    histo[line.rho - rho1] += 1;
+                    histoVert[line.rho - rho1] += 1;
                     rho1 = line.rho;
                 }
             }
             else{
-                horiLines[horiLen] = line;
-                horiLen++;
-                if (horiLen == 1)
+                horiLines[*horiLen] = line;
+                (*horiLen)++;
+                if (*horiLen == 1)
                     rho2 = line.rho;
                 else{
-                    histo[line.rho - rho2] += 1;
+                    histoHori[line.rho - rho2] += 1;
                     rho2 = line.rho;
                 }
             }
         }
     }
 
-    size_t range = 10;
-    size_t vertCapacity = vertLen, horiCapacity = horiLen;
-    while (range > 0 && (horiLen > 10 || vertLen > 10)){
-        size_t gap = FindGap(histo, histoSize, range);
-        Remove(accumulator, vertLines, vertCapacity, &vertLen, gap);
-        Remove(accumulator, horiLines, horiCapacity, &horiLen, gap);
+
+    size_t range = 5;
+    size_t vertCapacity = *vertLen, horiCapacity = *horiLen;
+    while (range > 0 && (*horiLen > 10 || *vertLen > 10)){
+        size_t gap = FindGap(histoVert, histoSize, range);
+        Remove(accumulator, vertLines, vertCapacity, vertLen, gap);
+        gap = FindGap(histoHori, histoSize, range);
+        Remove(accumulator, horiLines, horiCapacity, horiLen, gap);
         range--;
     }
-    printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
     
-    Line *newLines = malloc((vertLen*horiLen+1)*sizeof(Line));
+    Line *newLines = malloc(((*vertLen)*(*horiLen)+1)*sizeof(Line));
     size_t i = 0, j = 0;
     while (i < vertCapacity){
         if (vertLines[i].value != 0){
@@ -397,7 +389,8 @@ Line* FilterLines(unsigned int *accumulator, Line* lines){
     newLines[j].value = 0;
 
 
-    free(histo);
+    free(histoVert);
+    free(histoHori);
     free(vertLines);
     free(horiLines);
     free(lines);
@@ -426,7 +419,7 @@ size_t FindGap(unsigned int *histo, size_t histoSize, size_t range){
 
 
 void Remove(unsigned int *accumulator, Line *lines, size_t capacity, size_t *size, size_t gap){
-    size_t dGap = 40;
+    size_t dGap = gap/2;
     while (dGap > 0 && *size > 10){
         //Vertical Lines
         char inSudoku = 0;

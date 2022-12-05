@@ -9,12 +9,13 @@ typedef struct Intersection{
     unsigned int y; 
 } Intersection;
 
-Intersection* DetectIntersections(SDL_Surface *surface, unsigned int *normalSpace, size_t *length);
-//size_t GapSize(SDL_Surface *surface, Intersection *coords, size_t len);
+
+Intersection* FindIntersections(SDL_Surface *surface, unsigned int *normalSpace, size_t vertLen, size_t horiLen);
+int DontAdd(Intersection *coords, size_t x, size_t y, size_t nbIntersections);
 
 
+void CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, size_t horiLen);
 SDL_Surface *CropSurface(SDL_Surface *surface, Intersection current, int width,
         int height);
-void CropSquares(SDL_Surface *surface, Intersection *coords, size_t len);
 
 

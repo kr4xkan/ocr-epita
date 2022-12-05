@@ -5,105 +5,93 @@
 
 #include "../utils.h"
 #include "crop-manager.h"
+#include "cutter.h"
 
 #include <string.h>
 
 #define pi 3.1415926535
 
 
-Intersection* DetectIntersections(SDL_Surface *surface, unsigned int *normalSpace, size_t *length){
-    int w = surface->w, h = surface->h;
+Intersection* FindIntersections(SDL_Surface *surface, unsigned int *normalSpace, size_t vertLen, size_t horiLen){
+    unsigned int w = surface->w, h = surface->h;
 
-    size_t len = 200;
-    *length = len;
-    Intersection *coords = calloc(len*len, sizeof(Intersection));
-    size_t nbIntersections = 0;
+    size_t len = vertLen*horiLen;
+    Intersection *coords = calloc(len, sizeof(Intersection));
 
     //Fill the arrays with the intersections
-    int arrayX = 0, arrayY = -1;
-    unsigned int x = w + 1;
-    unsigned int y = 0;
-
-    size_t i = 0;
-    while (i < w*h && nbIntersections < 100){
-        if (normalSpace[i] >= 2) {
-            unsigned int xi = i % w;
-            if (xi < x) {
-                arrayY++;
-                arrayX = 0;
-            } else {
-                arrayX++;
-            }
-            x = xi;
-            coords[arrayY*len + arrayX].x = x;
-            coords[arrayY*len + arrayX].y = y;
-            nbIntersections++;
+    size_t j = 0;
+    unsigned int x = 0, y = 0;
+    for (size_t i = 0; i < w*h; i++){
+        if (normalSpace[i] >= 2 && !DontAdd(coords, x, y, j)){
+            coords[j].x = x;
+            coords[j].y = y;
+            j++;
         }
-        if (i % w == 0)
+        x++;
+        if (x == w){
+            x = 0;
             y++;
-
-        i++;
-    }
-    printf("nbIntersections:%lu\n", nbIntersections);
-
-
-
-    y = 0, x = 0;
-    while (coords[y*len].x != 0){
-        while (coords[y*len+x].x != 0){
-//            printf("(%u, %u)  ", x, y);
-  //          printf("x:%u  y:%u\n", coords[y*len+x].x, coords[y*len+x].y);
-            x++;
         }
-        y++;
-        x = 0;
     }
+
+
+    size_t start = 0;
+    for (size_t i = 1; i < len; i++){
+        size_t j = i;
+        if (i % vertLen == 0){
+            start = i;
+        }
+        while (j > start && coords[j-1].x >  coords[j].x){
+            Intersection tmp = coords[j-1];
+            coords[j-1] = coords[j];
+            coords[j] = tmp;
+            j--;
+        }
+
+    }
+
+    vertLen = vertLen > 10 ? 10 : vertLen;
+    horiLen = horiLen > 10 ? 10 : horiLen;
+
+
+    printf("top-left:      (%u, %u)\n", coords[0].x, coords[0].y);
+    printf("top-right:     (%u, %u)\n", coords[vertLen-1].x, coords[vertLen-1].y);
+    printf("bottom-left:   (%u, %u)\n", coords[vertLen*horiLen-vertLen].x, coords[vertLen*horiLen-vertLen].y);
+    printf("bottom-right:  (%u, %u)\n", coords[vertLen*horiLen-1].x, coords[vertLen*horiLen-1].y);
+
     return coords;
 }
 
-/*
-size_t GapSize(SDL_Surface *surface, Intersection *coords, size_t len){
-    size_t *histo = calloc(surface->w, sizeof(size_t));
-    for (size_t y = 0; y < 9; y++){
-        for (size_t x = 0; x < 9; x++){
-            Intersection current = coords[y*len + x];
 
-            unsigned int squareWidth = coords[y*len + x+1].x - current.x;
-            unsigned int squareHeight = coords[(y+1)*len + x].y - current.y;
-            histo[squareWidth]++;
-            histo[squareHeight]++;
+int DontAdd(Intersection *coords, size_t x, size_t y, size_t nbIntersections) {
+    /**
+     * Check if a line is similar to an already existing one
+     * Return 1 if the line already exist, 2 if a bigger one is found, 0 else
+     */
+
+    for (size_t i = 0; i < nbIntersections; i++) {
+        Intersection iCoord = coords[i];
+
+        int dx = abs((int)(iCoord.x) - (int)x);
+        int dy = abs((int)(iCoord.y) - (int)y);
+
+        if (dx <= 30 && dy <= 30) {
+            return 1;
         }
     }
-
-
-    size_t current = 0;
-    size_t range = 4;
-    for (size_t i = 0; i <= range*2; i++)
-        current += histo[i];
-
-    size_t gap = range;
-    size_t max = current;
-    for (size_t i = range+2; i < surface->w-range; i++){
-        current -= histo[i-range-1];
-        current += histo[i+range];
-        if (current > max){
-            gap = i;
-            max = current;
-        }
-    }
-    free(histo);
-
-    return gap;
+    return 0;
 }
-*/
 
-void CropSquares(SDL_Surface *surface, Intersection *coords, size_t len){
-    for (size_t y = 0; y < 9; y++){
-        for (size_t x = 0; x < 9; x++){
-            Intersection current = coords[y*len + x];
 
-            unsigned int squareWidth = coords[y*len + x+1].x - current.x;
-            unsigned int squareHeight = coords[(y+1)*len + x].y - current.y;
+
+
+void CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, size_t horiLen){
+    for (size_t y = 0; y < horiLen-1; y++){
+        for (size_t x = 0; x < vertLen-1; x++){
+            Intersection current = coords[y*vertLen + x];
+
+            unsigned int squareWidth = coords[y*vertLen + x+1].x - current.x;
+            unsigned int squareHeight = coords[(y+1)*vertLen + x].y - current.y;
 
             SDL_Surface *square = CropSurface(surface, current, squareWidth,
                     squareHeight);

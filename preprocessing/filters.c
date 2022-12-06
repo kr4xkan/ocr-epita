@@ -30,7 +30,7 @@ void surface_to_grayscale(SDL_Surface *surface) {
 
 int otsu(SDL_Surface *img, int w, int h) {
     Uint32 *pixels = img->pixels;
-    double histo[256];
+    float histo[256];
     for (size_t h = 0; h < 256; h++)
 	    histo[h] = 0;
     int nbpix = w * h;
@@ -51,11 +51,11 @@ int otsu(SDL_Surface *img, int w, int h) {
 
     double w2 = 0;     // expectation sum 2
     long n1 = 0;       // histo value for i
-    long n2;           // histo value for all others
-    double m1;         // mean value 1
-    double m2;         // mean value 2
-    double var;        // each value var to compare with maxvar
-    double maxvar = 0; // max variance : result
+    long n2 = 0;           // histo value for all others
+    float m1 = 0;         // mean value 1
+    float m2 = 0;         // mean value 2
+    float var = 0;        // each value var to compare with maxvar
+    float maxvar = 0; // max variance : result
 
     for (int i = 0; i <= 255; i++) // calcul of the best threshold : the one who
                                    // as the greatest variance.
@@ -68,11 +68,12 @@ int otsu(SDL_Surface *img, int w, int h) {
         var = (double)n1 * (double)n2 * (m1 - m2) * (m1 - m2);
         if (var > maxvar) {
             maxvar = var;
+	    printf("%i\n",i);
             threshold = i;
         }
     }
-    printf("%i\n",threshold);
-    return threshold - 15;
+    printf("final = %i\n",threshold);
+    return threshold;
 }
 
 void dumb_bin(SDL_Surface *surface) {

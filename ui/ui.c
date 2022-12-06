@@ -1,7 +1,4 @@
-#include <gtk/gtk.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_surface.h>
+#include "ui.h"
 
 typedef struct {
     GtkWindow* w_home;
@@ -124,9 +121,6 @@ void on_next_neural(GtkButton* self, gpointer user_data) {
     gtk_widget_show(GTK_WIDGET(app_state->next_solver));
     gtk_widget_hide(GTK_WIDGET(app_state->w_neural));
 
-    SDL_Surface *surf = IMG_Load(app_state->current_image);
-    set_gtk_image_from_surface(app_state->img_solver, surf);
-    SDL_FreeSurface(surf);
 // DO SOLVER + SHOW RESOLVED GRID
 // DO SOLVER + SHOW RESOLVED GRID
 // DO SOLVER + SHOW RESOLVED GRID
@@ -135,6 +129,32 @@ void on_next_neural(GtkButton* self, gpointer user_data) {
 // DO SOLVER + SHOW RESOLVED GRID
 // DO SOLVER + SHOW RESOLVED GRID
 // DO SOLVER + SHOW RESOLVED GRID
+    char grid[9][9] = {
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+    };
+    char changed[9][9] = {
+        {0, 0, 1, 0, 0, 0, 0, 0, 0},
+        {1, 0, 1, 0, 0, 0, 0, 0, 0},
+        {1, 1, 1, 0, 0, 0, 1, 1, 1},
+        {0, 0, 1, 0, 1, 1, 0, 0, 0},
+        {1, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 1, 0, 0, 0},
+        {1, 0, 0, 1, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+    };
+
+    SDL_Surface* grid_surface = make_sudoku_grid(grid, changed);
+    set_gtk_image_from_surface(app_state->img_solver, grid_surface);
+    SDL_FreeSurface(grid_surface);
 }
 
 void on_next_solver(GtkButton* self, gpointer user_data) {
@@ -143,10 +163,42 @@ void on_next_solver(GtkButton* self, gpointer user_data) {
     gtk_widget_hide(GTK_WIDGET(app_state->w_solver));
 }
 
+SDL_Surface* make_sudoku_grid(char grid[9][9], char changed[9][9]) {
+    TTF_Font* Sans = TTF_OpenFont("./Sans.ttf", 24);
+    SDL_Color Black = {0, 0, 0};
+    SDL_Color Red = {200, 0, 0};
+    SDL_Surface *surf = IMG_Load("./blank.png");
+
+    // Write TEXT
+    for (size_t i = 0; i < 9; i++) {
+        for (size_t j = 0; j < 9; j++) {
+            char text[2] = { 0, 0 };
+            text[0] = grid[i][j] + 48;
+            SDL_Surface* surfaceMessage;
+            if (changed[i][j])
+                surfaceMessage = TTF_RenderText_Solid(Sans, text, Red);
+            else
+                surfaceMessage = TTF_RenderText_Solid(Sans, text, Black);
+            SDL_Rect Message_rect;
+            Message_rect.x = 24 + (i * 48) + (i > 2) * 6;
+            Message_rect.y = 14 + (j * 48) - (j > 2) * 6;
+            Message_rect.w = surfaceMessage->w;
+            Message_rect.h = surfaceMessage->h;
+            SDL_BlitSurface(surfaceMessage, NULL, surf, &Message_rect);
+            SDL_FreeSurface(surfaceMessage);
+        }
+    }
+
+    TTF_CloseFont(Sans);
+    return surf;
+}
+
 int main (int argc, char *argv[])
 {
+    TTF_Init();
     // Initializes GTK.
     gtk_init(NULL, NULL);
+
 
     // Constructs a GtkBuilder instance.
     GtkBuilder* builder = gtk_builder_new ();
@@ -224,6 +276,7 @@ int main (int argc, char *argv[])
     gtk_widget_show(GTK_WIDGET(w_home));
     // Runs the main loop.
     gtk_main();
+    TTF_Quit();
 
     // Exits.
     return 0;

@@ -1,5 +1,6 @@
 #pragma once
 #include <SDL2/SDL_image.h>
+#include "crop-manager.h"
 
 int MainCutter(char *path);
     
@@ -41,7 +42,7 @@ void ComputeLine(unsigned int *linesArray, long int w, long int h, long int x1,
 
 
 // -----------------------------UTILS-------------------------------------
-void DrawIntersections(SDL_Surface *surface, unsigned int *accumulator);
+void DrawIntersections(SDL_Surface *surface, Intersection *coords, size_t len);
 void PrintMat(unsigned int *accumulator);
 void DrawLines(SDL_Surface *surface, int *pixels, Line *lines, size_t len);
 void DrawLine(int *pixels, long int w, long int h, long int x1, long int y1,

@@ -111,6 +111,56 @@ void CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, siz
 
 
 
+
+Intersection *ManualCrop(SDL_Surface *surface, Intersection topLeft, Intersection topRight, Intersection bottomLeft, Intersection bottomRight){
+    Intersection *coords = malloc(100*sizeof(Intersection));
+
+    Intersection *leftSide = FindPoints(topLeft, bottomLeft);
+    Intersection *rightSide = FindPoints(topRight, bottomRight);
+
+    for (size_t i = 0; i < 10; i++){
+        Intersection *line = FindPoints(leftSide[i], rightSide[i]);
+        for (size_t j = 0; j < 10; j++){
+            coords[i*10+j] = line[j];
+        }
+        free(line);
+    }
+
+
+
+    for(size_t i = 0; i < 10; i++){
+        for(size_t j = 0; j < 10; j++){
+            printf("%lu  (%u, %u)\n", i*10+j, coords[i*10+j].x, coords[i*10+j].y);
+        }
+
+    }
+    free(leftSide);
+    free(rightSide);
+    CropSquares(surface, coords, 10, 10);
+    return(coords);
+}
+
+
+
+Intersection *FindPoints(Intersection a, Intersection b){
+    Intersection *res = malloc(10*sizeof(Intersection));
+    res[0] = a;
+
+    int dx = ((int)b.x - (int)a.x)/9;
+    int dy = ((int)b.y - (int)a.y)/9;
+    printf("%i  %i\n", dx, dy);
+    for (size_t i = 1; i < 9; i++){
+        res[i].x = res[i-1].x + dx;
+        res[i].y = res[i-1].y + dy;
+    }
+    res[9] = b;
+    return res;
+}
+
+
+
+
+
 SDL_Surface *CropSurface(SDL_Surface *surface, Intersection current, int width,
                          int height){
     SDL_Surface *newSurface = SDL_CreateRGBSurface(
@@ -120,53 +170,66 @@ SDL_Surface *CropSurface(SDL_Surface *surface, Intersection current, int width,
 
     SDL_Rect rect = {current.x, current.y, width, height};
     SDL_BlitSurface(surface, &rect, newSurface, NULL);
-    return newSurface;
-}
 
 
-void ManualCrop(SDL_Surface *surface, Intersection topLeft, Intersection topRight, Intersection bottomLeft, Intersection bottomRight){
-    Intersection *coords = malloc(100*sizeof(Intersection));
+    SDL_Surface *res = SDL_CreateRGBSurface(
+        surface->flags, 28, 28, surface->format->BitsPerPixel,
+        surface->format->Rmask, surface->format->Gmask, surface->format->Bmask,
+        surface->format->Amask);
 
-    Intersection *leftSide = FindPoints(topLeft, bottomLeft);
-    Intersection *rightSide = FindPoints(topRight, bottomRight);
+    StretchBlit(newSurface, res);
+    SDL_FreeSurface(newSurface);
 
-    for (size_t i = 0; i < 10; i++){
-        Intersection *line = FindPoints(leftSide[i], rightSide[i]);
-        printf("%lu x:%u  y:%u\n", i, leftSide[i].x, leftSide[i].y);
-        for (size_t j = 0; j < 10; j++){
-            coords[i*10+j] = line[j];
-        }
-        free(line);
-    }
-    free(leftSide);
-    free(rightSide);
-    
-    for(size_t i = 0; i < 10; i++){
-        //printf("\ny:%u -> ", coords[i*10].y);
-        for(size_t j = 0; j < 10; j++){
-            //printf("%5u", coords[i*10 + j].x);
-             
-        }
-    }
-
-    CropSquares(surface, coords, 10, 10);
-    free(coords);
-}
-
-
-
-Intersection *FindPoints(Intersection a, Intersection b){
-    Intersection *res = malloc(10*sizeof(Intersection));
-    res[0] = a;
-
-    Intersection vect = {abs((int)(b.x - a.x)/10), abs((int)(b.y - a.y)/10)};
-    for (size_t i = 1; i < 9; i++){
-        res[i].x = res[i-1].x + vect.x;
-        res[i].y = res[i-1].y + vect.y;
-    }
-    res[9] = b;
     return res;
 }
 
 
+void StretchBlit(SDL_Surface* src,SDL_Surface* dest){
+    SDL_Surface* img = SDL_CreateRGBSurface(SDL_SWSURFACE,dest->w,dest->h,32,0,0,0,0);
+    StretchLinear(src,img);
+    SDL_BlitSurface(img,NULL,dest,NULL);
+    SDL_FreeSurface(img);
+}
 
+
+void StretchLinear(SDL_Surface* src,SDL_Surface* dest){
+    double rx = dest->w * 1.0 / src->w;
+    double ry = dest->h * 1.0 / src->h;
+
+    for(int i = 0; i < dest->w; i++){
+        for(int j = 0; j < dest->h; j++){
+            unsigned char pix;
+            double valx = i / rx;
+            double valy = j / ry;
+            int minx = (int) valx;
+            int miny = (int) valy;
+            int maxx = minx+1;
+
+            if (maxx>=src->w)
+                maxx--;
+
+            int maxy = miny+1;
+            if (maxy>=src->h)
+                maxy--;
+
+            double fx = valx-minx;
+            double fy = valy-miny;
+
+            for(int k = 0; k < 3; k++){
+                pix = (unsigned char)(GetPixelComp32(src,minx,miny,k)*(1-fx)*(1-fy) + GetPixelComp32(src,maxx,miny,k)*fx*(1-fy)
+                    + GetPixelComp32(src,minx,maxy,k)*(1-fx)*fy + GetPixelComp32(src,maxx,maxy,k)*fx*fy);
+                PutPixelComp32(dest,i,j,k,pix);
+            }
+        }
+    }
+}
+
+unsigned char GetPixelComp32(SDL_Surface* surface,int x,int y,int c){ 
+    unsigned char *p = ((unsigned char*)surface->pixels) + y * surface->pitch + x * 4;
+    return p[c];
+}
+
+void PutPixelComp32(SDL_Surface* surface,int x,int y,int c,unsigned char val){ 
+    unsigned char *p = ((unsigned char*)surface->pixels) + y * surface->pitch + x * 4;
+    p[c] = val;
+}

@@ -6,7 +6,6 @@
 
 #include "../utils.h"
 #include "cutter.h"
-#include "crop-manager.h"
 
 #include <string.h>
 #include <time.h>
@@ -106,20 +105,21 @@ int MainCutter(char *path) {
         
         /*
         Intersection tmp = {61, 56};
-        Intersection tmp1 = {703, 56};
-        Intersection tmp2 = {50, 639};
-        Intersection tmp3 = {713, 627};
+        Intersection tmp1 = {1950, 56};
+        Intersection tmp2 = {23, 1920};
+        Intersection tmp3 = {2086, 1834};
 
-        ManualCrop(surface, tmp, tmp1, tmp2, tmp3);
-        //SEND INTERSECTIONS TO UI FOR MANUAL VALIDATION
+        free(intersections);
+        intersections = ManualCrop(surface, tmp, tmp1, tmp2, tmp3);
         */
         
-        //CropSquares(surface, intersections, vertLen, horiLen);
+        
+        CropSquares(surface, intersections, vertLen, horiLen);
         
 
 
         DrawLines(surface, surface->pixels, lines, vertLen*horiLen);
-        DrawIntersections(surface, space);
+        //DrawIntersections(surface, intersections, 10*10);
         IMG_SavePNG(surface, "result.png");
         
         free(space);
@@ -135,12 +135,11 @@ int MainCutter(char *path) {
     
         unsigned int *spaceRotated = CreateSpace(surfaceRotated, linesRotated);
         Intersection *intersections = FindIntersections(surfaceRotated, spaceRotated, vertLen, horiLen);
-        //SEND INTERSECTIONS TO UI FOR MANUAL VALIDATION
 
         CropSquares(surfaceRotated, intersections, vertLen, horiLen);
 
         DrawLines(surfaceRotated, surfaceRotated->pixels, linesRotated, vertLen*horiLen);
-        DrawIntersections(surfaceRotated, spaceRotated);
+        //DrawIntersections(surfaceRotated, intersections, vertLen*horiLen);
         IMG_SavePNG(surfaceRotated, "result.png");
 
 
@@ -772,23 +771,20 @@ void DrawLine(int *pixels, long int w, long int h, long int x1, long int y1,
     }
 }
 
-void DrawIntersections(SDL_Surface *surface, unsigned int *space) {
+void DrawIntersections(SDL_Surface *surface, Intersection *coords, size_t len){
     int w = surface->w;
     int h = surface->h;
 
-    Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
-    int x = 0, y = 0;
-    for (long i = 0; i < w * h; i++) {
-        unsigned int val = space[i];
-
-        if (val >= 2) {
-            SetPixelData(surface, x, y, color);
-        }
-
-        x++;
-        if (x == w) {
-            y++;
-            x = 0;
+    Uint32 color = SDL_MapRGB(surface->format, 0, 0, 255);
+    for (size_t i = 0; i < len; i++) {
+        int x = (int)coords[i].x;
+        int y = (int)coords[i].y;
+        for (int dx = -5; dx <= 5; dx++){
+            for (int dy = -5; dy <= 5; dy++){
+                if (x+dx >= 0 && x+dx < w && y+dy >=0 && y+dy < h){
+                    SetPixelData(surface, x+dx, y+dy, color);
+                }
+            }
         }
     }
 }

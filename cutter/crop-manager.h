@@ -18,6 +18,12 @@ void CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, siz
 SDL_Surface *CropSurface(SDL_Surface *surface, Intersection current, int width,
         int height);
 
-void ManualCrop(SDL_Surface *surface, Intersection topLeft, Intersection topRight, Intersection bottomLeft, Intersection bottomRight);
+Intersection *ManualCrop(SDL_Surface *surface, Intersection topLeft, Intersection topRight, Intersection bottomLeft, Intersection bottomRight);
 Intersection *FindPoints(Intersection a, Intersection b);
+
+
+void StretchBlit(SDL_Surface* src,SDL_Surface* dest);
+void StretchLinear(SDL_Surface* src,SDL_Surface* dest);
+unsigned char GetPixelComp32(SDL_Surface* surface,int x,int y,int c);
+void PutPixelComp32(SDL_Surface* surface,int x,int y,int c,unsigned char val);
 

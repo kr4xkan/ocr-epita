@@ -122,3 +122,51 @@ SDL_Surface *CropSurface(SDL_Surface *surface, Intersection current, int width,
     SDL_BlitSurface(surface, &rect, newSurface, NULL);
     return newSurface;
 }
+
+
+void ManualCrop(SDL_Surface *surface, Intersection topLeft, Intersection topRight, Intersection bottomLeft, Intersection bottomRight){
+    Intersection *coords = malloc(100*sizeof(Intersection));
+
+    Intersection *leftSide = FindPoints(topLeft, bottomLeft);
+    Intersection *rightSide = FindPoints(topRight, bottomRight);
+
+    for (size_t i = 0; i < 10; i++){
+        Intersection *line = FindPoints(leftSide[i], rightSide[i]);
+        printf("%lu x:%u  y:%u\n", i, leftSide[i].x, leftSide[i].y);
+        for (size_t j = 0; j < 10; j++){
+            coords[i*10+j] = line[j];
+        }
+        free(line);
+    }
+    free(leftSide);
+    free(rightSide);
+    
+    for(size_t i = 0; i < 10; i++){
+        //printf("\ny:%u -> ", coords[i*10].y);
+        for(size_t j = 0; j < 10; j++){
+            //printf("%5u", coords[i*10 + j].x);
+             
+        }
+    }
+
+    CropSquares(surface, coords, 10, 10);
+    free(coords);
+}
+
+
+
+Intersection *FindPoints(Intersection a, Intersection b){
+    Intersection *res = malloc(10*sizeof(Intersection));
+    res[0] = a;
+
+    Intersection vect = {abs((int)(b.x - a.x)/10), abs((int)(b.y - a.y)/10)};
+    for (size_t i = 1; i < 9; i++){
+        res[i].x = res[i-1].x + vect.x;
+        res[i].y = res[i-1].y + vect.y;
+    }
+    res[9] = b;
+    return res;
+}
+
+
+

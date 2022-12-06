@@ -103,16 +103,25 @@ int MainCutter(char *path) {
 
         unsigned int *space = CreateSpace(surface, lines);
         Intersection *intersections = FindIntersections(surface, space, vertLen, horiLen);
+        
+        /*
+        Intersection tmp = {61, 56};
+        Intersection tmp1 = {703, 56};
+        Intersection tmp2 = {50, 639};
+        Intersection tmp3 = {713, 627};
+
+        ManualCrop(surface, tmp, tmp1, tmp2, tmp3);
         //SEND INTERSECTIONS TO UI FOR MANUAL VALIDATION
-       
-        CropSquares(surface, intersections, vertLen, horiLen);
+        */
+        
+        //CropSquares(surface, intersections, vertLen, horiLen);
         
 
 
-        //DrawLines(surface, accumulator, surface->pixels);
-        //DrawIntersections(surface, space);
-        //IMG_SavePNG(surface, "result.png");
-
+        DrawLines(surface, surface->pixels, lines, vertLen*horiLen);
+        DrawIntersections(surface, space);
+        IMG_SavePNG(surface, "result.png");
+        
         free(space);
         free(intersections);
     }
@@ -130,7 +139,7 @@ int MainCutter(char *path) {
 
         CropSquares(surfaceRotated, intersections, vertLen, horiLen);
 
-        DrawLines(surfaceRotated, accumulatorRotated, surfaceRotated->pixels);
+        DrawLines(surfaceRotated, surfaceRotated->pixels, linesRotated, vertLen*horiLen);
         DrawIntersections(surfaceRotated, spaceRotated);
         IMG_SavePNG(surfaceRotated, "result.png");
 
@@ -371,16 +380,28 @@ Line* FilterLines(unsigned int *accumulator, Line* lines, size_t *vertLen, size_
     size_t i = 0, j = 0;
     while (i < vertCapacity){
         if (vertLines[i].value != 0){
-            newLines[j] = vertLines[i];
-            j++;
+            if (j >= 10){
+                (*vertLen)--;
+                accumulator[vertLines[i].accuPos] = 0;
+            }
+            else{
+                newLines[j] = vertLines[i];
+                j++;
+            }
         }
         i++;
     }
     i = 0;
     while (i < horiCapacity){
         if (horiLines[i].value != 0){
-            newLines[j] = horiLines[i];
-            j++;
+            if (j >= *vertLen + 10){
+                (*horiLen)--;
+                accumulator[horiLines[i].accuPos] = 0;
+            }
+            else{
+                newLines[j] = horiLines[i];
+                j++;
+            }
         }
         i++;
     }
@@ -672,38 +693,24 @@ void PrintMat(unsigned int *accumulator) {
     printf("\n");
 }
 
-void DrawLines(SDL_Surface *surface, unsigned int *accumulator, int *pixels) {
+void DrawLines(SDL_Surface *surface, int *pixels, Line *lines, size_t len){
     Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
 
-    int rho = 0;
-    int theta = 0;
-    for (size_t i = 0; i < accumulatorSize; i++) {
+    for (size_t i = 0; i < len; i++) {
+        Line line = lines[i];
 
 
-        unsigned int val = accumulator[i];
-        // A peak has its value greater than minPeak and gretaer or equal than
-        // its 4 closest neighbours first compare to the peak then left / right
-        // / top / bottom
-        if (val != 0) {
-            // Drawing the corresponding lines
-            double thetaRad = theta * pi / 180;
-            double a = cos(thetaRad);
-            double b = sin(thetaRad);
-            int x0 = a * rho;
-            int y0 = b * rho;
-            int x1 = x0 + 3000 * (-b);
-            int y1 = y0 + 3000 * a;
-            int x2 = x0 - 3000 * (-b);
-            int y2 = y0 - 3000 * a;
+        double thetaRad = line.theta * pi / 180;
+        double a = cos(thetaRad);
+        double b = sin(thetaRad);
+        int x0 = a * line.rho;
+        int y0 = b * line.rho;
+        int x1 = x0 + 3000 * (-b);
+        int y1 = y0 + 3000 * a;
+        int x2 = x0 - 3000 * (-b);
+        int y2 = y0 - 3000 * a;
 
-            DrawLine(pixels, surface->w, surface->h, x1, y1, x2, y2, color);
-        }
-
-        theta++;
-        if (theta == maxTheta){
-            theta = 0;
-            rho++;
-        }
+        DrawLine(pixels, surface->w, surface->h, x1, y1, x2, y2, color);
     }
 }
 

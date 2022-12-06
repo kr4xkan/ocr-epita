@@ -18,4 +18,6 @@ void CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, siz
 SDL_Surface *CropSurface(SDL_Surface *surface, Intersection current, int width,
         int height);
 
+void ManualCrop(SDL_Surface *surface, Intersection topLeft, Intersection topRight, Intersection bottomLeft, Intersection bottomRight);
+Intersection *FindPoints(Intersection a, Intersection b);
 

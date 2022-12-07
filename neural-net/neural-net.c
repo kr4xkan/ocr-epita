@@ -249,6 +249,32 @@ void cmd_train(int argc, char **argv) {
     free_network(&nn);
 }
 
+char recognize_digit(SDL_Surface* surf) {
+    NeuralNetwork nn;
+    Buffer* buf = load_buffer("../neural-net/save.nrl");
+    nn = deserialize_network(buf);
+    free_buffer(buf);
+
+    double* img = malloc(784 * sizeof(double));
+
+    load_from_surface(img, surf);
+    free(nn.layers[0].A.v);
+    nn.layers[0].A.v = img;
+    forward_pass(&nn);
+
+    double max = nn.layers[2].A.v[0];
+    size_t max_index = 0;
+    for (size_t j = 1; j < 10; j++) {
+        if (nn.layers[2].A.v[j] > max) {
+            max_index = j;
+            max = nn.layers[2].A.v[j];
+        }
+    }
+
+    free_network(&nn);
+    return (char)max_index;
+}
+
 void cmd_guess(int argc, char **argv) {
     if (argc != 1)
         errx(1, "./neural-net --guess <image_path>");
@@ -317,30 +343,30 @@ void cmd_test(int argc, char **argv) {
     free(dataset);
 }
 
-int main(int argc, char **argv) {
-    // Initialize randomizer
-    srand((unsigned int)time(NULL));
-
-    if (argc == 1)
-        errx(1, "./neural-net --[train,guess]");
-
-    if (strcmp(argv[1], "--train") == 0) {
-        cmd_train(argc - 2, argv + 2);
-    } else if (strcmp(argv[1], "--guess") == 0) {
-        cmd_guess(argc - 2, argv + 2);
-    } else if (strcmp(argv[1], "--test") == 0) {
-        cmd_test(argc - 2, argv + 2);
-    }
-
-    return 0;
-}
+//int main(int argc, char **argv) {
+//    // Initialize randomizer
+//    srand((unsigned int)time(NULL));
+// 
+//    if (argc == 1)
+//        errx(1, "./neural-net --[train,guess]");
+// 
+//    if (strcmp(argv[1], "--train") == 0) {
+//        cmd_train(argc - 2, argv + 2);
+//    } else if (strcmp(argv[1], "--guess") == 0) {
+//        cmd_guess(argc - 2, argv + 2);
+//    } else if (strcmp(argv[1], "--test") == 0) {
+//        cmd_test(argc - 2, argv + 2);
+//    }
+// 
+//    return 0;
+//}
 
 void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterations) {
     NeuralNetwork nn = *neural_net;
 
     szt len_dataset;
-    LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
-    //LabeledImage* dataset = load_all_cutter_set(dataset_path, &len_dataset);
+    //LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
+    LabeledImage* dataset = load_all_cutter_set(dataset_path, &len_dataset);
 
     Matrix expected = new_matrix(10, nn.batch_size);
     
@@ -404,6 +430,8 @@ LabeledImage* load_all_cutter_set(char* dataset_path, szt* len_d) {
     concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
     dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "4/"), &len_tmp);
     concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "4b/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
     dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "5/"), &len_tmp);
     concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
     free(path);
@@ -440,7 +468,7 @@ LabeledImage* load_cutter_set(char* path, szt* len_d) {
                       strcat(strcpy(tmppath, path), dir->d_name));
             int x = dir->d_name[0] - 48 - 1;
             int y = dir->d_name[2] - 48 - 1;
-            dataset[i].label = x * 9 + y;
+            dataset[i].label = y * 9 + x;
             free(tmppath);
             i++;
         }
@@ -552,13 +580,7 @@ void print_pixel(double *img, int w, int h) {
     }
 }
 
-
-void load_image(double *res, char *image_path) {
-    SDL_Surface* surface;
-    surface = IMG_Load(image_path);
-    if (!surface) {
-        errx(1, "Could not load image (%s)", image_path);
-    }
+void load_from_surface(double *res, SDL_Surface* surface) {
     int w, h;
     w = surface->w;
     h = surface->h;
@@ -571,6 +593,15 @@ void load_image(double *res, char *image_path) {
             res[x * 28 + y] = (double)average / 255;
         }
     }
+}
+
+void load_image(double *res, char *image_path) {
+    SDL_Surface* surface;
+    surface = IMG_Load(image_path);
+    if (!surface) {
+        errx(1, "Could not load image (%s)", image_path);
+    }
+    load_from_surface(res, surface);
 
     SDL_FreeSurface(surface);
 }

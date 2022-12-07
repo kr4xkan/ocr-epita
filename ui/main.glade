@@ -132,7 +132,7 @@
         <child>
           <object class="GtkDrawingArea" id="area">
             <property name="width-request">580</property>
-            <property name="height-request">400</property>
+            <property name="height-request">479</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
           </object>
@@ -155,14 +155,14 @@
         <property name="can-focus">False</property>
         <child>
           <object class="GtkImage" id="img_neural">
-            <property name="width-request">580</property>
-            <property name="height-request">400</property>
+            <property name="width-request">330</property>
+            <property name="height-request">260</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
           </object>
           <packing>
-            <property name="x">108</property>
-            <property name="y">121</property>
+            <property name="x">29</property>
+            <property name="y">172</property>
           </packing>
         </child>
         <child>
@@ -195,6 +195,18 @@
           <packing>
             <property name="x">343</property>
             <property name="y">538</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkImage" id="img_neural_res">
+            <property name="width-request">330</property>
+            <property name="height-request">260</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+          </object>
+          <packing>
+            <property name="x">437</property>
+            <property name="y">172</property>
           </packing>
         </child>
       </object>
@@ -251,6 +263,22 @@
           <packing>
             <property name="x">343</property>
             <property name="y">538</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkScale" id="slider_rotate">
+            <property name="width-request">154</property>
+            <property name="height-request">46</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="show-fill-level">True</property>
+            <property name="fill-level">360</property>
+            <property name="round-digits">1</property>
+            <property name="draw-value">False</property>
+          </object>
+          <packing>
+            <property name="x">85</property>
+            <property name="y">535</property>
           </packing>
         </child>
       </object>

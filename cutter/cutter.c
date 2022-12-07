@@ -442,14 +442,18 @@ SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator, int 
 
     SDL_Surface *rotated = NULL;
     int angle = sum / count;
+    printf("%d\n", angle);
     *angleDegree = angle;
+    printf("1 %d\n", angle);
     if (abs(angle) > 1) {
         if (angle >= 45) {
             printf("Rotate %i° Clockwise\n", 90 - angle);
             rotated = RotateSurface(surface, -90 + angle);
+    printf("2 %d\n", angle);
         } else {
             printf("Rotate %i° CounterClockwise\n", angle);
             rotated = RotateSurface(surface, angle);
+    printf("3 %d\n", angle);
         }
     }
 

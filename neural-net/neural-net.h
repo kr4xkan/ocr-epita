@@ -63,6 +63,8 @@ int guess_xor(char *input);
 
 int main_xor(char *path);
 
+char recognize_digit(SDL_Surface* surf);
+
 void save_network(NeuralNetwork *nn);
 
 void load_network(NeuralNetwork *nn, char *path);
@@ -72,6 +74,7 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
 void setup_network(NeuralNetwork *nn, int *layers_node_count, int batch_size,
                    float learning_rate, int layer_count);
 
+void load_from_surface(double *res, SDL_Surface* surface);
 void load_image(double *res, char *image_path);
 
 void print_pixel(double *img, int w, int h);

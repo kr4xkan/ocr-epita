@@ -9,7 +9,7 @@
 
 #define dotSize 6
 
-void on_run(GtkButton *button, gpointer user_data);
+void on_run(AppState* state);
 gint GetDist(int x, int y, DrawArea *game);
 void on_cursor_motion(GtkDrawingArea *area, GdkEventButton *event, gpointer user_data);
 void on_press(GtkDrawingArea *area, GdkEventButton *event, gpointer user_data);

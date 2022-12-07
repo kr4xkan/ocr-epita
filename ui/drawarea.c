@@ -1,18 +1,17 @@
 #include "drawarea.h"
 
-void on_run(GtkButton *button, gpointer user_data)
+void on_run(AppState* state)
 {
-    AppState* state = user_data;
     DrawArea *game = &state->draw;
 
-
-    SDL_Surface *surface = LoadImage((char*)state->current_image);
+    SDL_Surface *surface = state->current_surf;
 
     unsigned int *accumulator = CreateAccumulator(surface);
     Line *lines = DetectLines(accumulator);
 
-    int* angle;
-    SDL_Surface *surfaceRotated = CheckRotation(surface, accumulator, angle);
+    int angle = 0;
+    SDL_Surface *surfaceRotated = CheckRotation(surface, accumulator, &angle);
+    double ratio = state->draw.ratio;
     if (surfaceRotated == NULL) {
         size_t vertLen = 0, horiLen = 0;
         lines = FilterLines(accumulator, lines, &vertLen, &horiLen);
@@ -20,9 +19,6 @@ void on_run(GtkButton *button, gpointer user_data)
         unsigned int *space = CreateSpace(surface, lines);
         Intersection *intersections = FindIntersections(surface, space, vertLen, horiLen);
 
-
-
-        double ratio = state->draw.ratio;
         game->p1.x = intersections[0].x*ratio;    
         game->p1.y = intersections[0].y*ratio;    
 
@@ -41,6 +37,8 @@ void on_run(GtkButton *button, gpointer user_data)
         free(intersections);
     }
     else{
+        state->current_surf = surfaceRotated;
+        set_gtk_image_from_surface(state->img_lines, state->current_surf, 1);
         unsigned int *accumulatorRotated = CreateAccumulator(surfaceRotated);
         Line *linesRotated = DetectLines(accumulatorRotated);
 
@@ -50,7 +48,8 @@ void on_run(GtkButton *button, gpointer user_data)
         unsigned int *spaceRotated = CreateSpace(surfaceRotated, linesRotated);
         Intersection *intersections = FindIntersections(surfaceRotated, spaceRotated, vertLen, horiLen);
 
-        size_t ratio = 2;
+        ratio = (float)580/(float)surfaceRotated->w;
+
         game->p1.x = intersections[0].x*ratio;    
         game->p1.y = intersections[0].y*ratio;    
 
@@ -70,12 +69,9 @@ void on_run(GtkButton *button, gpointer user_data)
         free(linesRotated);
         free(spaceRotated);
         free(intersections);
-        SDL_FreeSurface(surfaceRotated);
     } 
     free(accumulator);
     free(lines);
-    SDL_FreeSurface(surface);
-
     gtk_widget_queue_draw(GTK_WIDGET(game->area));
 }
 

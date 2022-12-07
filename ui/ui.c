@@ -1,6 +1,5 @@
 #include "ui.h"
 
-
 double set_gtk_image_from_surface (GtkImage* img_container, SDL_Surface *surface, char preserve_ratio)
 {
     Uint32 src_format;
@@ -34,12 +33,36 @@ double set_gtk_image_from_surface (GtkImage* img_container, SDL_Surface *surface
                dst_format, pixels, rowstride);
     SDL_UnlockSurface(surface);
 
-    int nW = 580;
-    int nH;
-    if (preserve_ratio)
+    float nW;
+    float nH;
+    if (preserve_ratio == 1) {
+        nW = 580;
         nH = surface->h * nW / surface->w;
-    else
-        nH = 400;
+    } else if (preserve_ratio == 2) {
+        float ws = 330;
+        float hs = 260;
+        float rs = ws/hs;
+        float ri = surface->w/surface->h;
+        if (rs > ri) {
+            nW = surface->w * (hs/surface->h);
+            nH = hs;
+        } else {
+            nW = ws;
+            nH = surface->h * (ws/surface->w);
+        }
+    } else {
+        float ws = 580;
+        float hs = 400;
+        float rs = ws/hs;
+        float ri = surface->w/surface->h;
+        if (rs > ri) {
+            nW = surface->w * (hs/surface->h);
+            nH = hs;
+        } else {
+            nW = ws;
+            nH = surface->h * (ws/surface->w);
+        }
+    }
 
     GdkPixbuf* pxbscaled = gdk_pixbuf_scale_simple(pixbuf, nW, nH, GDK_INTERP_BILINEAR);
     
@@ -64,7 +87,8 @@ void on_select_file(GtkFileChooserButton* self, gpointer user_data) {
 
     SDL_Surface *surf = IMG_Load(app_state->current_image);
     set_gtk_image_from_surface(app_state->img_preprocessing, surf, 0);
-    SDL_FreeSurface(surf);
+    app_state->current_surf = surf;
+    app_state->rotate_surf = RotateSurface(app_state->current_surf, 0);
 
     gtk_widget_show(GTK_WIDGET(app_state->w_preprocessing));
     gtk_widget_show(GTK_WIDGET(app_state->next_preprocessing));
@@ -76,10 +100,11 @@ void on_next_preprocessing(GtkButton* self, gpointer user_data) {
     gtk_widget_show(GTK_WIDGET(app_state->w_lines));
     gtk_widget_show(GTK_WIDGET(app_state->next_lines));
     gtk_widget_hide(GTK_WIDGET(app_state->w_preprocessing));
+    app_state->current_surf = app_state->rotate_surf;
 
-    SDL_Surface *surf = IMG_Load(app_state->current_image);
-    app_state->draw.ratio = set_gtk_image_from_surface(app_state->img_lines, surf, 1);
-    SDL_FreeSurface(surf);
+    app_state->draw.ratio = set_gtk_image_from_surface(app_state->img_lines, app_state->current_surf, 1);
+
+    on_run(app_state);
 // DETECT LINES AND CROP
 // DETECT LINES AND CROP
 // DETECT LINES AND CROP
@@ -95,9 +120,52 @@ void on_next_lines(GtkButton* self, gpointer user_data) {
     gtk_widget_show(GTK_WIDGET(app_state->next_neural));
     gtk_widget_hide(GTK_WIDGET(app_state->w_lines));
 
-    SDL_Surface *surf = IMG_Load(app_state->current_image);
-    set_gtk_image_from_surface(app_state->img_neural, surf, 0);
-    SDL_FreeSurface(surf);
+    Intersection* corners = calloc(4, sizeof(Intersection));
+    corners[0].x = app_state->draw.p1.x/app_state->draw.ratio;
+    corners[0].y = app_state->draw.p1.y/app_state->draw.ratio;
+    corners[1].x = app_state->draw.p2.x/app_state->draw.ratio;
+    corners[1].y = app_state->draw.p2.y/app_state->draw.ratio;
+    corners[2].x = app_state->draw.p3.x/app_state->draw.ratio;
+    corners[2].y = app_state->draw.p3.y/app_state->draw.ratio;
+    corners[3].x = app_state->draw.p4.x/app_state->draw.ratio;
+    corners[3].y = app_state->draw.p4.y/app_state->draw.ratio;
+
+    app_state->cells = ManualCutter(app_state->current_surf, corners);
+
+    char grid[9][9] = {
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8},
+    };
+    for (size_t i = 0; i < 81; i++) {
+        size_t x = i / 9;
+        size_t y = i % 9;
+        grid[x][y] = recognize_digit(app_state->cells[i]);
+        free(app_state->cells[i]);
+    }
+    free(app_state->cells);
+
+    char changed[9][9] = {
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+    };
+    SDL_Surface* grid_surface = make_sudoku_grid(grid, changed);
+    set_gtk_image_from_surface(app_state->img_neural_res, grid_surface, 2);
+    SDL_FreeSurface(grid_surface);
+    set_gtk_image_from_surface(app_state->img_neural, app_state->current_surf, 2);
 // APPLY NEURAL NETWORKS ON ALL CROPPED CELLS
 // APPLY NEURAL NETWORKS ON ALL CROPPED CELLS
 // APPLY NEURAL NETWORKS ON ALL CROPPED CELLS
@@ -155,29 +223,41 @@ void on_next_solver(GtkButton* self, gpointer user_data) {
     gtk_widget_hide(GTK_WIDGET(app_state->w_solver));
 }
 
+void on_rotate_image(GtkRange* slider, gpointer user_data) {
+    AppState* app_state = user_data;
+
+    double angle = gtk_range_get_value(slider);
+    if (app_state->rotate_surf)
+        SDL_FreeSurface(app_state->rotate_surf);
+    app_state->rotate_surf = RotateSurface(app_state->current_surf, angle);
+    set_gtk_image_from_surface(app_state->img_preprocessing, app_state->rotate_surf, 0);
+}
+
 SDL_Surface* make_sudoku_grid(char grid[9][9], char changed[9][9]) {
     TTF_Font* Sans = TTF_OpenFont("./Sans.ttf", 24);
     SDL_Color Black = {0, 0, 0};
-    SDL_Color Red = {200, 0, 0};
+    SDL_Color Red = {66, 135, 245};
     SDL_Surface *surf = IMG_Load("./blank.png");
 
     // Write TEXT
     for (size_t i = 0; i < 9; i++) {
         for (size_t j = 0; j < 9; j++) {
-            char text[2] = { 0, 0 };
-            text[0] = grid[i][j] + 48;
-            SDL_Surface* surfaceMessage;
-            if (changed[i][j])
-                surfaceMessage = TTF_RenderText_Solid(Sans, text, Red);
-            else
-                surfaceMessage = TTF_RenderText_Solid(Sans, text, Black);
-            SDL_Rect Message_rect;
-            Message_rect.x = 24 + (i * 48) + (i > 2) * 6;
-            Message_rect.y = 14 + (j * 48) - (j > 2) * 6;
-            Message_rect.w = surfaceMessage->w;
-            Message_rect.h = surfaceMessage->h;
-            SDL_BlitSurface(surfaceMessage, NULL, surf, &Message_rect);
-            SDL_FreeSurface(surfaceMessage);
+            if (grid[i][j] != 0) {
+                char text[2] = { 0, 0 };
+                text[0] = grid[i][j] + 48;
+                SDL_Surface* surfaceMessage;
+                if (changed[i][j])
+                    surfaceMessage = TTF_RenderText_Solid(Sans, text, Red);
+                else
+                    surfaceMessage = TTF_RenderText_Solid(Sans, text, Black);
+                SDL_Rect Message_rect;
+                Message_rect.x = 24 + (i * 48) + (i > 2) * 6;
+                Message_rect.y = 14 + (j * 48) - (j > 2) * 6;
+                Message_rect.w = surfaceMessage->w;
+                Message_rect.h = surfaceMessage->h;
+                SDL_BlitSurface(surfaceMessage, NULL, surf, &Message_rect);
+                SDL_FreeSurface(surfaceMessage);
+            }
         }
     }
 
@@ -223,6 +303,8 @@ int main (int argc, char *argv[])
             gtk_builder_get_object(builder, "img_lines"));
     GtkImage* img_neural = GTK_IMAGE(
             gtk_builder_get_object(builder, "img_neural"));
+    GtkImage* img_neural_res = GTK_IMAGE(
+            gtk_builder_get_object(builder, "img_neural_res"));
     GtkImage* img_solver = GTK_IMAGE(
             gtk_builder_get_object(builder, "img_solver"));
 
@@ -236,6 +318,9 @@ int main (int argc, char *argv[])
             gtk_builder_get_object(builder, "next_neural"));
     GtkButton* next_solver = GTK_BUTTON(
             gtk_builder_get_object(builder, "next_solver"));
+    GtkScale* slider_rotate = GTK_SCALE(
+            gtk_builder_get_object(builder, "slider_rotate"));
+    gtk_range_set_range(GTK_RANGE(slider_rotate), 0, 180);
 
     GtkDrawingArea* area = GTK_DRAWING_AREA(
             gtk_builder_get_object(builder, "area"));
@@ -249,6 +334,7 @@ int main (int argc, char *argv[])
         .img_preprocessing = img_preprocessing,
         .img_lines = img_lines,
         .img_neural = img_neural,
+        .img_neural_res = img_neural_res,
         .img_solver = img_solver,
         .next_preprocessing = next_preprocessing,
         .next_lines = next_lines,
@@ -274,10 +360,10 @@ int main (int argc, char *argv[])
 
     g_signal_connect(file_chooser, "file-set", G_CALLBACK(on_select_file), &app_state);
     g_signal_connect(next_preprocessing, "clicked", G_CALLBACK(on_next_preprocessing), &app_state);
-    g_signal_connect(next_preprocessing, "clicked", G_CALLBACK(on_run), &app_state);
     g_signal_connect(next_lines, "clicked", G_CALLBACK(on_next_lines), &app_state);
     g_signal_connect(next_neural, "clicked", G_CALLBACK(on_next_neural), &app_state);
     g_signal_connect(next_solver, "clicked", G_CALLBACK(on_next_solver), &app_state);
+    g_signal_connect(GTK_RANGE(slider_rotate), "value-changed", G_CALLBACK(on_rotate_image), &app_state);
     g_signal_connect(w_home, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     g_signal_connect(w_preprocessing, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     g_signal_connect(w_lines, "destroy", G_CALLBACK(gtk_main_quit), NULL);

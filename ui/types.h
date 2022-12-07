@@ -19,11 +19,15 @@ typedef struct {
     GtkImage* img_preprocessing;
     GtkImage* img_lines;
     GtkImage* img_neural;
+    GtkImage* img_neural_res;
     GtkImage* img_solver;
     GtkButton* next_preprocessing;
     GtkButton* next_lines;
     GtkButton* next_neural;
     GtkButton* next_solver;
     gchar* current_image;
+    SDL_Surface* current_surf;
+    SDL_Surface* rotate_surf;
+    SDL_Surface** cells;
     DrawArea draw;
 } AppState;

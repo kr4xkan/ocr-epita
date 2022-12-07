@@ -9,10 +9,10 @@ GtkFileChooserButton *file_chooser;
 GtkButton *open_button;
 
 
-GtkWindow *line_validation;
+GtkWindow *line_check_window;
+GtkDrawingArea *area;
 GtkButton *continue_button;
 GtkButton *replace_button;
-GtkDrawingArea *area;
 
 
 
@@ -63,7 +63,11 @@ int main(){
 	file_chooser = GTK_FILE_CHOOSER_BUTTON(gtk_builder_get_object(builder, "file_chooser"));
 	open_button =  GTK_BUTTON(gtk_builder_get_object(builder, "open_button"));
 
-	area = GTK_DRAWING_AREA(gtk_builder_get_object(builder, "area"));
+	//Ooening Window:
+	line_check_window = GTK_WINDOW(gtk_builder_get_object(builder, "line_check_window"));
+    area = GTK_DRAWING_AREA(gtk_builder_get_object(builder, "area"));
+	continue_button =  GTK_BUTTON(gtk_builder_get_object(builder, "continue_button"));
+	replace_button =  GTK_BUTTON(gtk_builder_get_object(builder, "replace_button"));
 
 
 	//signals

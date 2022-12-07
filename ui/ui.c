@@ -1,23 +1,7 @@
 #include "ui.h"
 
-typedef struct {
-    GtkWindow* w_home;
-    GtkWindow* w_preprocessing;
-    GtkWindow* w_lines;
-    GtkWindow* w_neural;
-    GtkWindow* w_solver;
-    GtkImage* img_preprocessing;
-    GtkImage* img_lines;
-    GtkImage* img_neural;
-    GtkImage* img_solver;
-    GtkButton* next_preprocessing;
-    GtkButton* next_lines;
-    GtkButton* next_neural;
-    GtkButton* next_solver;
-    gchar* current_image;
-} AppState;
 
-void set_gtk_image_from_surface (GtkImage* img_container, SDL_Surface *surface)
+double set_gtk_image_from_surface (GtkImage* img_container, SDL_Surface *surface, char preserve_ratio)
 {
     Uint32 src_format;
     Uint32 dst_format;
@@ -37,7 +21,7 @@ void set_gtk_image_from_surface (GtkImage* img_container, SDL_Surface *surface)
         dst_format = SDL_PIXELFORMAT_RGB24;
     }
 
-    // create pixbuf                                                            
+    // create pixbuf                                                 
     pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB, has_alpha, 8,
                              surface->w, surface->h);
     rowstride = gdk_pixbuf_get_rowstride (pixbuf);
@@ -50,12 +34,20 @@ void set_gtk_image_from_surface (GtkImage* img_container, SDL_Surface *surface)
                dst_format, pixels, rowstride);
     SDL_UnlockSurface(surface);
 
-    GdkPixbuf* pxbscaled = gdk_pixbuf_scale_simple(pixbuf, 580, 400, GDK_INTERP_BILINEAR);
+    int nW = 580;
+    int nH;
+    if (preserve_ratio)
+        nH = surface->h * nW / surface->w;
+    else
+        nH = 400;
+
+    GdkPixbuf* pxbscaled = gdk_pixbuf_scale_simple(pixbuf, nW, nH, GDK_INTERP_BILINEAR);
     
     gtk_image_set_from_pixbuf(img_container, pxbscaled);
 
     g_object_unref (pixbuf);
     g_object_unref (pxbscaled);
+    return (double)nW/(double)surface->w;
 }
 
 void on_select_file(GtkFileChooserButton* self, gpointer user_data) {
@@ -71,7 +63,7 @@ void on_select_file(GtkFileChooserButton* self, gpointer user_data) {
 // BINARISATION
 
     SDL_Surface *surf = IMG_Load(app_state->current_image);
-    set_gtk_image_from_surface(app_state->img_preprocessing, surf);
+    set_gtk_image_from_surface(app_state->img_preprocessing, surf, 0);
     SDL_FreeSurface(surf);
 
     gtk_widget_show(GTK_WIDGET(app_state->w_preprocessing));
@@ -86,7 +78,7 @@ void on_next_preprocessing(GtkButton* self, gpointer user_data) {
     gtk_widget_hide(GTK_WIDGET(app_state->w_preprocessing));
 
     SDL_Surface *surf = IMG_Load(app_state->current_image);
-    set_gtk_image_from_surface(app_state->img_lines, surf);
+    app_state->draw.ratio = set_gtk_image_from_surface(app_state->img_lines, surf, 1);
     SDL_FreeSurface(surf);
 // DETECT LINES AND CROP
 // DETECT LINES AND CROP
@@ -104,7 +96,7 @@ void on_next_lines(GtkButton* self, gpointer user_data) {
     gtk_widget_hide(GTK_WIDGET(app_state->w_lines));
 
     SDL_Surface *surf = IMG_Load(app_state->current_image);
-    set_gtk_image_from_surface(app_state->img_neural, surf);
+    set_gtk_image_from_surface(app_state->img_neural, surf, 0);
     SDL_FreeSurface(surf);
 // APPLY NEURAL NETWORKS ON ALL CROPPED CELLS
 // APPLY NEURAL NETWORKS ON ALL CROPPED CELLS
@@ -153,7 +145,7 @@ void on_next_neural(GtkButton* self, gpointer user_data) {
     };
 
     SDL_Surface* grid_surface = make_sudoku_grid(grid, changed);
-    set_gtk_image_from_surface(app_state->img_solver, grid_surface);
+    set_gtk_image_from_surface(app_state->img_solver, grid_surface, 0);
     SDL_FreeSurface(grid_surface);
 }
 
@@ -245,6 +237,9 @@ int main (int argc, char *argv[])
     GtkButton* next_solver = GTK_BUTTON(
             gtk_builder_get_object(builder, "next_solver"));
 
+    GtkDrawingArea* area = GTK_DRAWING_AREA(
+            gtk_builder_get_object(builder, "area"));
+
     AppState app_state = {
         .w_home = w_home,
         .w_preprocessing = w_preprocessing,
@@ -259,11 +254,27 @@ int main (int argc, char *argv[])
         .next_lines = next_lines,
         .next_neural = next_neural,
         .next_solver = next_solver,
+        .draw = {
+            .area = area,
+            .p1 = {0, 0, dotSize, dotSize},
+            .p2 = {0, 0, dotSize, dotSize},
+            .p3 = {0, 0, dotSize, dotSize},
+            .p4 = {0, 0, dotSize, dotSize},
+        }
     };
 
     // Connects event handlers.
+    gtk_widget_add_events (GTK_WIDGET(area), GDK_BUTTON_PRESS_MASK);
+    gtk_widget_add_events (GTK_WIDGET(area), GDK_BUTTON_RELEASE_MASK);
+    gtk_widget_add_events (GTK_WIDGET(area), GDK_POINTER_MOTION_MASK);
+    g_signal_connect(area, "draw", G_CALLBACK(on_draw), &app_state);
+    g_signal_connect(area, "button-press-event", G_CALLBACK(on_press), &app_state);
+    g_signal_connect(area, "button-release-event", G_CALLBACK(on_release), &app_state);
+    g_signal_connect(area, "motion-notify-event", G_CALLBACK(on_cursor_motion), &app_state);
+
     g_signal_connect(file_chooser, "file-set", G_CALLBACK(on_select_file), &app_state);
     g_signal_connect(next_preprocessing, "clicked", G_CALLBACK(on_next_preprocessing), &app_state);
+    g_signal_connect(next_preprocessing, "clicked", G_CALLBACK(on_run), &app_state);
     g_signal_connect(next_lines, "clicked", G_CALLBACK(on_next_lines), &app_state);
     g_signal_connect(next_neural, "clicked", G_CALLBACK(on_next_neural), &app_state);
     g_signal_connect(next_solver, "clicked", G_CALLBACK(on_next_solver), &app_state);

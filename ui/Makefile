@@ -1,17 +1,21 @@
 # Makefile
 
-CC = gcc
+CC = gcc -g
 CFLAGS = -Wall -Og -O3 \
 		 $(shell pkg-config --cflags gtk+-3.0 sdl2 SDL2_image SDL2_ttf)
-LDLIBS = $(shell pkg-config --libs gtk+-3.0 sdl2 SDL2_image SDL2_ttf)
+LDLIBS = -lm $(shell pkg-config --libs gtk+-3.0 sdl2 SDL2_image SDL2_ttf)
 
-EXE = ui
+SRC = ui.c drawarea.c ../utils.c ../cutter/cutter.c ../cutter/crop-manager.c
+OBJ = ${SRC:.c=.o}
+DEP = ${SRC:.c=.d}
 
-all: $(EXE)
+ui: ${OBJ}
 
 .PHONY: clean
 
 clean:
-	${RM} $(EXE)
+	${RM} ${OBJ}
+	${RM} ${DEP}
+	${RM} ui
 
-# END
+-include ${DEP}

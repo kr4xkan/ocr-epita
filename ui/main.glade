@@ -89,6 +89,8 @@
             <property name="height-request">400</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="xalign">0</property>
+            <property name="yalign">0</property>
           </object>
           <packing>
             <property name="x">108</property>
@@ -125,6 +127,18 @@
           <packing>
             <property name="x">343</property>
             <property name="y">538</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkDrawingArea" id="area">
+            <property name="width-request">580</property>
+            <property name="height-request">400</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+          </object>
+          <packing>
+            <property name="x">108</property>
+            <property name="y">121</property>
           </packing>
         </child>
       </object>

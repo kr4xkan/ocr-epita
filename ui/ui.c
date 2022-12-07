@@ -1,8 +1,12 @@
 #include <gtk/gtk.h>
-#include<SDL2/SDL.h>
-#include<SDL2/SDL_image.h>
-#include<SDL2/SDL_surface.h>
-#include<SDL2/SDL_ttf.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_surface.h>
+
+#include </home/kam/SPE/ocr-epita/cutter/cutter.h>
+#include </home/kam/SPE/ocr-epita/neural-net/neural-net.h>
+#include </home/kam/SPE/ocr-epita/preprocessing/preprocessing.h>
+#include </home/kam/SPE/ocr-epita/solver/solver.h>
 
 
 //global variables
@@ -22,33 +26,19 @@ GtkWidget *image;
 
 //binarisation window
 GtkWindow *binarisation;
-GtkPaned *paned_container;
-GtkWidget *image2;
-GtkCheckButton *grayscale_check;
+GtkFixed *fixed_container_bin;
+GtkWidget *bin_image;
+GtkCheckButton *binarise_check;
+GtkButton *next_button;
 
 //solved_window
 GtkWindow *solved;
 GtkFixed *fixed_container3;
 GtkWidget *image3;
+GtkButton *save_button;
 
 gchar* filename;
 
-//configure-event (ne marche pas, à implémenter)
-gboolean on_configure_opening(GtkWidget *widget, GdkEvent *event, gpointer user_data){
-	
-	GtkFixed *fixed = user_data;
-
-	gint width = gtk_widget_get_allocated_width(GTK_WIDGET(opening_window));
-	gint height = gtk_widget_get_allocated_height(GTK_WIDGET(opening_window));
-
-	//gtk_fixed_move(fixed, fixed->button1, width/5, height/2);
-	//gtk_fixed_move(fixed_container, GTK_WIDGET(label1), width/2, 4*height/5);
-	//gtk_fixed_move(fixed_container, GTK_WIDGET(text_entry), width/2, height/2);
-
-	return FALSE;
-}
-
-//
 double set_gtk_image_from_surface (GtkImage* img_container, SDL_Surface *surface, char preserve_ratio)
 {
     Uint32 src_format;
@@ -128,6 +118,13 @@ void on_open_button(GtkWidget *widget, GdkEvent *event){
 	gtk_widget_show(GTK_WIDGET(manual_rotation));
 }
 
+void on_next_button(GtkWidget *widget, GdkEvent *event){
+	gtk_widget_hide(GTK_WIDGET(binarisation));
+	gtk_widget_show(GTK_WIDGET(solved));
+}
+
+void on_save_button(GtkWidget *widget, GdkEvent *event){
+}
 
 int main(){
 	
@@ -157,14 +154,17 @@ int main(){
 	
 	//binarisation components
 	binarisation = GTK_WINDOW(gtk_builder_get_object(builder, "binarisation"));
-	paned_container = GTK_PANED(gtk_builder_get_object(builder, "paned_container"));
-	image = GTK_WIDGET(gtk_builder_get_object(builder, "image2"));
+	fixed_container_bin = GTK_FIXED(gtk_builder_get_object(builder, "fixed_container_bin"));
+	bin_image = GTK_WIDGET(gtk_builder_get_object(builder, "bin_image"));
+	binarise_check = GTK_CHECK_BUTTON(gtk_builder_get_object(builder, "binarise_check"));
+	next_button = GTK_BUTTON(gtk_builder_get_object(builder,"next_button"));
 
 
 	//solved components
 	solved = GTK_WINDOW(gtk_builder_get_object(builder,"solved"));
 	fixed_container3 = GTK_FIXED(gtk_builder_get_object(builder, "fixed_container3"));
 	image3 = GTK_WIDGET(gtk_builder_get_object(builder, "image3"));
+	save_button = GTK_BUTTON(gtk_builder_get_object(builder, "save_button"));
 
 
 	//signals
@@ -174,6 +174,9 @@ int main(){
 	//g_signal_connect(open_button, "clicked", G_CALLBACK(on_open_button), &);
 	g_signal_connect(file_chooser, "file-set", G_CALLBACK(select_file), &filename);
 	g_signal_connect(open_button, "clicked", G_CALLBACK(on_open_button),&filename);
+	g_signal_connect(next_button, "clicked", G_CALLBACK(on_next_button), NULL);
+	g_signal_connect(save_button, "clicked", G_CALLBACK(on_save_button), NULL);
+
 	//show windows
 	gtk_widget_hide(GTK_WIDGET(binarisation));
 	gtk_widget_hide(GTK_WIDGET(solved));

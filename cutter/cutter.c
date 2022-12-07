@@ -133,9 +133,9 @@ SDL_Surface **AutoCutter(SDL_Surface *ogSurf, SDL_Surface *binSurf) {
         
         res = CropSquares(ogSurf, intersections, vertLen, horiLen);
 
-        DrawLines(binSurf, binSurf->pixels, lines, vertLen*horiLen);
-        //DrawIntersections(binSurf, intersections, 10*10);
-        IMG_SavePNG(binSurf, "result.png");
+        DrawLines(ogSurf, ogSurf->pixels, lines, vertLen*horiLen);
+        //DrawIntersections(ogSurf, intersections, 10*10);
+        IMG_SavePNG(ogSurf, "result.png");
 
         
         free(space);
@@ -156,9 +156,9 @@ SDL_Surface **AutoCutter(SDL_Surface *ogSurf, SDL_Surface *binSurf) {
 
         res = CropSquares(ogSurfRotated, intersections, vertLen, horiLen);
 
-        DrawLines(binSurfRotated, binSurfRotated->pixels, linesRotated, vertLen*horiLen);
-        //DrawIntersections(binSurfRotated, intersections, vertLen*horiLen);
-        IMG_SavePNG(binSurfRotated, "result.png");
+        DrawLines(ogSurfRotated, ogSurfRotated->pixels, linesRotated, vertLen*horiLen);
+        //DrawIntersections(ogSurfRotated, intersections, vertLen*horiLen);
+        IMG_SavePNG(ogSurfRotated, "result.png");
 
 
         free(accumulatorRotated);

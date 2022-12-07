@@ -1,14 +1,11 @@
-#include <SDL2/SDL_image.h>
 #include <SDL2/SDL_surface.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "../utils.h"
-#include "cutter.h"
-
 #include <string.h>
 #include <time.h>
+
+#include "cutter.h"
 
 #define pi 3.1415926535
 #define maxTheta 360
@@ -27,7 +24,7 @@ unsigned int minPeak;
 double cosArray[maxTheta];
 double sinArray[maxTheta];
 
-
+/*
 int main(int argc, char **argv) {
     printf("\n");
     if (argc < 2) {
@@ -69,7 +66,7 @@ int main(int argc, char **argv) {
     }
     
 }
-    
+  */  
 int MainCutter(char *path) {
     clock_t t = clock();
 

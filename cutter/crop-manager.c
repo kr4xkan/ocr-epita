@@ -53,12 +53,12 @@ Intersection* FindIntersections(SDL_Surface *surface, unsigned int *normalSpace,
     vertLen = vertLen > 10 ? 10 : vertLen;
     horiLen = horiLen > 10 ? 10 : horiLen;
 
-
+/*
     printf("top-left:      (%u, %u)\n", coords[0].x, coords[0].y);
     printf("top-right:     (%u, %u)\n", coords[vertLen-1].x, coords[vertLen-1].y);
     printf("bottom-left:   (%u, %u)\n", coords[vertLen*horiLen-vertLen].x, coords[vertLen*horiLen-vertLen].y);
     printf("bottom-right:  (%u, %u)\n", coords[vertLen*horiLen-1].x, coords[vertLen*horiLen-1].y);
-
+*/
     return coords;
 }
 

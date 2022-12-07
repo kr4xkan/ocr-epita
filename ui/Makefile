@@ -1,19 +1,22 @@
-# Makefile
-
+CPPFLAGS = -MMD
 CC = gcc
-CFLAGS = `pkg-config --cflags gtk+-3.0` -Wall -O3
-LDLIBS = `pkg-config --libs gtk+-3.0`
+CFLAGS = `pkg-config --cflags gtk+-3.0` -Wall -Wextra -fsanitize=address -std=c99 -g \
+		 $(shell pkg-config --cflags sdl2 SDL2_image)
+LDLIBS = `pkg-config --libs gtk+-3.0` -lm $(shell pkg-config --libs sdl2 SDL2_image)
+LDFLAGS = -fsanitize=address
 
-EXE = tmp
+SRC = ui ../cutter/cutter.c ../cutter/crop-manager.c ../utils.c
+OBJ = ${SRC:.c=.o}
+DEP = ${SRC:.c=.d}
 
-all: $(EXE)
-
-$(foreach f, $(EXE), $(eval $(f):))
+ui: ${OBJ}
 
 .PHONY: clean
 
 clean:
-	${RM} $(EXE)
+	${RM} ${OBJ}
+	${RM} ${DEP}
+	${RM} ui
 
-# END
 
+-include ${DEP}

@@ -11,19 +11,17 @@ typedef struct {
 } DrawArea;
 
 typedef struct {
-    GtkWindow* w_home;
-    GtkWindow* w_preprocessing;
-    GtkWindow* w_lines;
-    GtkWindow* w_neural;
-    GtkWindow* w_solver;
-    GtkImage* img_preprocessing;
-    GtkImage* img_lines;
-    GtkImage* img_neural;
-    GtkImage* img_solver;
-    GtkButton* next_preprocessing;
-    GtkButton* next_lines;
-    GtkButton* next_neural;
-    GtkButton* next_solver;
-    gchar* current_image;
+    SDL_Surface *currentImage;
+
+    GtkWindow *opening_window;
+    GtkFileChooserButton *file_chooser;
+    GtkButton *open_button;
+
+
+    GtkWindow *line_check_window;
+    GtkDrawingArea *area;
+    GtkButton *next_lines;
+    GtkImage *img_lines;
+
     DrawArea draw;
 } AppState;

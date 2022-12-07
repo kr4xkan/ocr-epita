@@ -1,6 +1,5 @@
 #include <gtk/gtk.h>
 
-
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_surface.h>
@@ -21,6 +20,7 @@ GtkWindow *line_check_window;
 GtkDrawingArea *area;
 GtkButton *next_lines;
 GtkImage *img_lines;
+
 
 SDL_Surface *currentImage;
 
@@ -116,9 +116,29 @@ int main(){
     img_lines = GTK_IMAGE(gtk_builder_get_object(builder, "img_lines"));
 
 
+    AppState app_state = {
+        .opening_window = opening_window,
+        .file_chooser = file_chooser,
+        .open_button = open_button,
+
+        
+        .img_lines = img_lines,
+        .next_lines = next_lines,
+        .next_neural = next_neural,
+        .next_solver = next_solver,
+        .draw = {
+            .area = area,
+            .p1 = {0, 0, dotSize, dotSize},
+            .p2 = {0, 0, dotSize, dotSize},
+            .p3 = {0, 0, dotSize, dotSize},
+            .p4 = {0, 0, dotSize, dotSize},
+        }
+    };
+
 	//signals
 	g_signal_connect(opening_window, "destroy", G_CALLBACK(gtk_main_quit),NULL);
 	g_signal_connect(open_button, "clicked", G_CALLBACK(on_open_button), NULL);
+	g_signal_connect(open_button, "clicked", G_CALLBACK(on_run), NULL);
 	g_signal_connect(file_chooser, "file-set", G_CALLBACK(select_file), &file_chooser);
 
 	//show windows

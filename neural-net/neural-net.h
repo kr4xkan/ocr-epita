@@ -76,6 +76,7 @@ void load_image(double *res, char *image_path);
 
 void print_pixel(double *img, int w, int h);
 
+LabeledImage* load_all_cutter_set(char* dataset_path, szt* len_d);
 LabeledImage* load_cutter_set(char* path, szt* len_d);
 LabeledImage *load_dataset(char *path, size_t *len);
 

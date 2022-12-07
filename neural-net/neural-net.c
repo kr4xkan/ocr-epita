@@ -218,10 +218,6 @@ double backward_pass(NeuralNetwork* nn, Matrix expected) {
     add(nn->layers[1].W, nn->updates.mW1, nn->layers[1].W);
     add(nn->layers[2].B, nn->updates.mB2, nn->layers[2].B);
     add(nn->layers[1].B, nn->updates.mB1, nn->layers[1].B);
-    // sub(nn->layers[2].W, nn->updates.dW2, nn->layers[2].W);
-    // sub(nn->layers[1].W, nn->updates.dW1, nn->layers[1].W);
-    // sub(nn->layers[2].B, nn->updates.dB2, nn->layers[2].B);
-    // sub(nn->layers[1].B, nn->updates.dB1, nn->layers[1].B);
 
     free_matrix(&W2T);
     free_matrix(&A1T);
@@ -274,6 +270,13 @@ void cmd_guess(int argc, char **argv) {
     free_network(&nn);
 }
 
+void concat_dataset(LabeledImage** dest, LabeledImage* src, szt* ld, szt* ls) {
+    *ld += *ls;
+    *dest = realloc(*dest, *ld * sizeof(LabeledImage));
+    memcpy(*dest + *ld, src, *ls * sizeof(LabeledImage));
+    free(src);
+}
+
 void cmd_test(int argc, char **argv) {
     if (argc != 1)
         errx(1, "./neural-net --test <image_path>");
@@ -285,7 +288,7 @@ void cmd_test(int argc, char **argv) {
 
     szt len_dataset;
     //LabeledImage* dataset = load_dataset(argv[0], &len_dataset);
-    LabeledImage* dataset = load_cutter_set(argv[0], &len_dataset);
+    LabeledImage* dataset = load_all_cutter_set(argv[0], &len_dataset);
 
     szt correct = 0;
     for (size_t i = 0; i < len_dataset; i++) {
@@ -332,18 +335,19 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
     NeuralNetwork nn = *neural_net;
 
     szt len_dataset;
-    LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
+    //LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
+    LabeledImage* dataset = load_all_cutter_set(dataset_path, &len_dataset);
 
     Matrix expected = new_matrix(10, nn.batch_size);
     
     for (szt i = 0; i < iterations; i++) {
         // Randomize array
-        // for (szt i = 0; i < len_dataset - 1; i++) {
-        //     szt j = i + rand() / (RAND_MAX / (len_dataset - i) + 1);
-        //     LabeledImage t = dataset[j];
-        //     dataset[j] = dataset[i];
-        //     dataset[i] = t;
-        // }
+        for (szt i = 0; i < len_dataset - 1; i++) {
+            szt j = i + rand() / (RAND_MAX / (len_dataset - i) + 1);
+            LabeledImage t = dataset[j];
+            dataset[j] = dataset[i];
+            dataset[i] = t;
+        }
 
         double error = 0;
         for (szt j = 0; j < len_dataset; j+=nn.batch_size) {
@@ -372,6 +376,23 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
 
     free_matrix(&expected);
     free(dataset);
+}
+
+LabeledImage* load_all_cutter_set(char* dataset_path, szt* len_d) {
+    szt len_dataset;
+    szt len_tmp;
+    char* path = malloc((strlen(dataset_path) + 2) * sizeof(char));
+    LabeledImage* dataset = load_cutter_set(strcat(strcpy(path, dataset_path), "1/"), &len_dataset);
+    LabeledImage* dataset_m;
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "2/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "4/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "5/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+
+    *len_d = len_dataset;
+    return dataset;
 }
 
 LabeledImage* load_cutter_set(char* path, szt* len_d) {
@@ -415,9 +436,13 @@ LabeledImage* load_cutter_set(char* path, szt* len_d) {
     char str[5];
     i = 0;
     while (fgets(str, 5, label_file) != NULL) {
-        
+        labels[i] = str[0] - 48;
         i++;
     }
+
+    for (szt i = 0; i < len; i++)
+        dataset[i].label = labels[dataset[i].label];
+
     fclose(label_file);
     free(label_path);
 

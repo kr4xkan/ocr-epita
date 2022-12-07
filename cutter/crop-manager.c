@@ -85,7 +85,8 @@ int DontAdd(Intersection *coords, size_t x, size_t y, size_t nbIntersections) {
 
 
 
-void CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, size_t horiLen){
+SDL_Surface **CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, size_t horiLen){
+    SDL_Surface **res = malloc(81*sizeof(SDL_Surface*));
     for (size_t y = 0; y < horiLen-1; y++){
         for (size_t x = 0; x < vertLen-1; x++){
             Intersection current = coords[y*vertLen + x];
@@ -96,7 +97,8 @@ void CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, siz
             SDL_Surface *square = CropSurface(surface, current, squareWidth,
                     squareHeight);
 
-
+            res[y*(vertLen-1)+x] = square;
+            /*
             char name[] = {x+'1', '-', y+'1', '.', 'p', 'n', 'g', '\0'};
             char *newStr = malloc((strlen(name) + 15) * sizeof(char));
             strcpy(newStr, "squares/");
@@ -104,19 +106,20 @@ void CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, siz
             IMG_SavePNG(square, newStr);
             SDL_FreeSurface(square);
             free(newStr);
+            */
         }
     }
-    printf("All squares have been cropped\n");
+    return res;
 }
 
 
 
 
-Intersection *ManualCrop(SDL_Surface *surface, Intersection topLeft, Intersection topRight, Intersection bottomLeft, Intersection bottomRight){
+SDL_Surface **ManualCrop(SDL_Surface *surface, Intersection *corners){
     Intersection *coords = malloc(100*sizeof(Intersection));
 
-    Intersection *leftSide = FindPoints(topLeft, bottomLeft);
-    Intersection *rightSide = FindPoints(topRight, bottomRight);
+    Intersection *leftSide = FindPoints(corners[0], corners[1]);
+    Intersection *rightSide = FindPoints(corners[2], corners[3]);
 
     for (size_t i = 0; i < 10; i++){
         Intersection *line = FindPoints(leftSide[i], rightSide[i]);
@@ -126,18 +129,9 @@ Intersection *ManualCrop(SDL_Surface *surface, Intersection topLeft, Intersectio
         free(line);
     }
 
-
-
-    for(size_t i = 0; i < 10; i++){
-        for(size_t j = 0; j < 10; j++){
-            printf("%lu  (%u, %u)\n", i*10+j, coords[i*10+j].x, coords[i*10+j].y);
-        }
-
-    }
     free(leftSide);
     free(rightSide);
-    CropSquares(surface, coords, 10, 10);
-    return(coords);
+    return CropSquares(surface, coords, 10, 10);
 }
 
 

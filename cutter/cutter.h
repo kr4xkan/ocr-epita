@@ -5,8 +5,9 @@
 #include "../utils.h"
 
 
-int MainCutter(char *path);
     
+SDL_Surface **AutoCutter(SDL_Surface *ogSurf, SDL_Surface *binSurf);
+SDL_Surface **ManualCutter(SDL_Surface *ogSurf, Intersection *corners);
 
 
 // -----------------------------Lines--------------------------------------
@@ -31,7 +32,7 @@ void Remove(unsigned int *accumulator, Line *lines, size_t capacity, size_t *siz
 
 
 // -----------------------------Rotation--------------------------------------
-SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator);
+SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator, int *angleDegree);
 SDL_Surface *RotateSurface(SDL_Surface *origine, float angle);
 
 

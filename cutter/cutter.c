@@ -24,7 +24,7 @@ unsigned int minPeak;
 double cosArray[maxTheta];
 double sinArray[maxTheta];
 
-/*
+
 int main(int argc, char **argv) {
     printf("\n");
     if (argc < 2) {
@@ -32,15 +32,49 @@ int main(int argc, char **argv) {
     }
 
 
+    //----------------------------CUTTER-------------------------------
     if (strcmp(argv[1], "--cut") == 0) {
         if (argc != 3) {
             errx(1, "\nUsage: ./cutter --cut <image_path>\nExample:" 
                     "./cutter --cut original/image_01.jpeg");
         }
-        return MainCutter(argv[2]);
 
+        SDL_Surface *ogSurf;
+        SDL_Surface *binSurf;
+        char *path = malloc(200 * sizeof(char));
+        strcpy(path, argv[2]);
+        if (strcmp(path, "0") == 0){
+            printf("Using default image\n");
+            ogSurf = LoadImage("../DataSample/cutter/og4.png");
+            binSurf = LoadImage("../DataSample/cutter/4.png");
+        }
+        else{
+            char *ogPath = malloc((strlen(path) + 5) * sizeof(char));
+            strcpy(ogPath, "og");
+            strcat(ogPath, path);
+
+            ogSurf = LoadImage(ogPath);
+            binSurf = LoadImage(path);
+            free(ogPath);
+        }
+        if (!binSurf || !ogSurf)
+            errx(1, "Could not load image");
+
+        SDL_Surface **res = AutoCutter(ogSurf, binSurf);
+
+
+        for (size_t i = 0; i < 81; i++)
+            SDL_FreeSurface(res[i]);
+        free(path);
+        free(res);
+        SDL_FreeSurface(ogSurf);
+        SDL_FreeSurface(binSurf);
+
+        return 0;
     } 
 
+
+    //----------------------------ROTATION-------------------------------
     else if (strcmp(argv[1], "--rotate") == 0){
         if (argc != 4){
             errx(1, "\nUsage: ./rotate --rotate <image_path> <angle>\nExample: ./rotate "
@@ -66,96 +100,82 @@ int main(int argc, char **argv) {
     }
     
 }
-  */  
-int MainCutter(char *path) {
+    
+
+
+SDL_Surface **ManualCutter(SDL_Surface *ogSurf, Intersection *corners){
+    return ManualCrop(ogSurf, corners);
+}
+
+
+
+
+
+SDL_Surface **AutoCutter(SDL_Surface *ogSurf, SDL_Surface *binSurf) {
     clock_t t = clock();
-
-    // WARNING: NEVER USE TWO ACCUMULATOR AT THE SAME TIME
-    // SOME VALUES ARE COMPUTED WITH CreateAccumulator AND WILL CHANGE IF USE WITH
-    // ANOTHER ACCUMULATOR
-
-    // Load the surface
-    SDL_Surface *surface;
-    if (strcmp(path, "0") == 0){
-        printf("Using default image\n");
-        surface = LoadImage("../DataSample/cutter/1rotated.png");
-    }
-    else{
-        surface = LoadImage(path);
-    }
-    if (!surface)
-        errx(1, "Could not load image");
+    
+    SDL_Surface **res;
 
 
-    unsigned int *accumulator = CreateAccumulator(surface);
+    unsigned int *accumulator = CreateAccumulator(binSurf);
     Line *lines = DetectLines(accumulator);
 
-    SDL_Surface *surfaceRotated = CheckRotation(surface, accumulator);
+    int angle = 0;
+    SDL_Surface *binSurfRotated = CheckRotation(binSurf, accumulator, &angle);
 
-    if (surfaceRotated == NULL) {
+    if (binSurfRotated == NULL) {
         size_t vertLen = 0, horiLen = 0;
         lines = FilterLines(accumulator, lines, &vertLen, &horiLen);
         printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
 
-        unsigned int *space = CreateSpace(surface, lines);
-        Intersection *intersections = FindIntersections(surface, space, vertLen, horiLen);
+        unsigned int *space = CreateSpace(binSurf, lines);
+        Intersection *intersections = FindIntersections(binSurf, space, vertLen, horiLen);
         
-        /*
-        Intersection tmp = {61, 56};
-        Intersection tmp1 = {1950, 56};
-        Intersection tmp2 = {23, 1920};
-        Intersection tmp3 = {2086, 1834};
+        res = CropSquares(ogSurf, intersections, vertLen, horiLen);
 
-        free(intersections);
-        intersections = ManualCrop(surface, tmp, tmp1, tmp2, tmp3);
-        */
-        
-        
-        CropSquares(surface, intersections, vertLen, horiLen);
-        
+        DrawLines(binSurf, binSurf->pixels, lines, vertLen*horiLen);
+        //DrawIntersections(binSurf, intersections, 10*10);
+        IMG_SavePNG(binSurf, "result.png");
 
-
-        DrawLines(surface, surface->pixels, lines, vertLen*horiLen);
-        //DrawIntersections(surface, intersections, 10*10);
-        IMG_SavePNG(surface, "result.png");
         
         free(space);
         free(intersections);
     }
     else{
-        unsigned int *accumulatorRotated = CreateAccumulator(surfaceRotated);
+        SDL_Surface *ogSurfRotated = RotateSurface(ogSurf, angle);
+
+        unsigned int *accumulatorRotated = CreateAccumulator(binSurfRotated);
         Line *linesRotated = DetectLines(accumulatorRotated);
 
         size_t vertLen = 0, horiLen = 0;
         linesRotated = FilterLines(accumulatorRotated, linesRotated, &vertLen, &horiLen);
         printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
     
-        unsigned int *spaceRotated = CreateSpace(surfaceRotated, linesRotated);
-        Intersection *intersections = FindIntersections(surfaceRotated, spaceRotated, vertLen, horiLen);
+        unsigned int *spaceRotated = CreateSpace(binSurfRotated, linesRotated);
+        Intersection *intersections = FindIntersections(binSurfRotated, spaceRotated, vertLen, horiLen);
 
-        CropSquares(surfaceRotated, intersections, vertLen, horiLen);
+        res = CropSquares(ogSurfRotated, intersections, vertLen, horiLen);
 
-        DrawLines(surfaceRotated, surfaceRotated->pixels, linesRotated, vertLen*horiLen);
-        //DrawIntersections(surfaceRotated, intersections, vertLen*horiLen);
-        IMG_SavePNG(surfaceRotated, "result.png");
+        DrawLines(binSurfRotated, binSurfRotated->pixels, linesRotated, vertLen*horiLen);
+        //DrawIntersections(binSurfRotated, intersections, vertLen*horiLen);
+        IMG_SavePNG(binSurfRotated, "result.png");
 
 
         free(accumulatorRotated);
         free(linesRotated);
         free(spaceRotated);
         free(intersections);
-        SDL_FreeSurface(surfaceRotated);
+        SDL_FreeSurface(binSurfRotated);
+        SDL_FreeSurface(ogSurfRotated);
     } 
-
     free(accumulator);
     free(lines);
-    SDL_FreeSurface(surface);
+
 
     t = clock() - t;
     double time_taken = ((double)t) / CLOCKS_PER_SEC; // in seconds
-
     printf("\n%f seconds to execute \n", time_taken);
-    return 0;
+    return res;
 }
 
 
@@ -470,7 +490,7 @@ void Remove(unsigned int *accumulator, Line *lines, size_t capacity, size_t *siz
 
 
 
-SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator) {
+SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator, int *angleDegree) {
     /**
      * Compute an average angle to rotate the image
      * Return NULL if the surface does not need rotation
@@ -499,6 +519,7 @@ SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator) {
 
     SDL_Surface *rotated = NULL;
     int angle = sum / count;
+    *angleDegree = angle;
     if (abs(angle) > 1) {
         if (angle >= 45) {
             printf("Rotate %i° Clockwise\n", 90 - angle);

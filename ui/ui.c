@@ -5,20 +5,22 @@
 
 #define dotSize 6
 
-typedef struct Feur{
+typedef struct Game{
+    GtkWindow *window;
     GtkDrawingArea *area; 
-    Intersection p1;
-    Intersection p2;
-    Intersection p3;
-    Intersection p4;
-} Feur;
+    GdkRectangle p1;
+    GdkRectangle p2;
+    GdkRectangle p3;
+    GdkRectangle p4;
+    gint moving;
+} Game;
 
 
 
 // Event handler for the "clicked" signal of the start button.
 void on_run(GtkButton *button, gpointer user_data)
 {
-    Feur *feur = user_data;
+    Game *game = user_data;
 
 
     SDL_Surface *surface = LoadImage("../DataSample/cutter/4.png");
@@ -33,24 +35,21 @@ void on_run(GtkButton *button, gpointer user_data)
 
         unsigned int *space = CreateSpace(surface, lines);
         Intersection *intersections = FindIntersections(surface, space, vertLen, horiLen);
-        
-        feur->p1 = intersections[0];    
-        feur->p2 = intersections[vertLen-1];    
-        feur->p3 = intersections[vertLen*(horiLen-1)];    
-        feur->p4 = intersections[vertLen*horiLen-1];    
-        
-        feur->p1.x /= 10;
-        feur->p1.y /= 10;
-        
-        feur->p2.x /= 10;
-        feur->p2.y /= 10;
 
-        feur->p3.x /= 10;
-        feur->p3.y /= 10;
 
-        feur->p4.x /= 10;
-        feur->p4.y /= 10;
 
+        size_t ratio = 2;
+        game->p1.x = intersections[0].x/ratio;    
+        game->p1.y = intersections[0].y/ratio;    
+
+        game->p2.x = intersections[vertLen-1].x/ratio;    
+        game->p2.y = intersections[vertLen-1].y/ratio;    
+
+        game->p3.x = intersections[vertLen*horiLen-vertLen].x/ratio;    
+        game->p3.y = intersections[vertLen*horiLen-vertLen].y/ratio;    
+        
+        game->p4.x = intersections[vertLen*horiLen-1].x/ratio;    
+        game->p4.y = intersections[vertLen*horiLen-1].y/ratio;    
 
         //CropSquares(surface, intersections, vertLen, horiLen);
         
@@ -67,22 +66,19 @@ void on_run(GtkButton *button, gpointer user_data)
         unsigned int *spaceRotated = CreateSpace(surfaceRotated, linesRotated);
         Intersection *intersections = FindIntersections(surfaceRotated, spaceRotated, vertLen, horiLen);
 
-        feur->p1 = intersections[0];    
-        feur->p2 = intersections[vertLen-1];    
-        feur->p3 = intersections[vertLen*horiLen-vertLen];    
-        feur->p4 = intersections[vertLen*horiLen-1];    
+        size_t ratio = 2;
+        game->p1.x = intersections[0].x/ratio;    
+        game->p1.y = intersections[0].y/ratio;    
 
-        feur->p1.x /= 10;
-        feur->p1.y /= 10;
+        game->p2.x = intersections[vertLen-1].x/ratio;    
+        game->p2.y = intersections[vertLen-1].y/ratio;    
+
+        game->p3.x = intersections[vertLen*horiLen-vertLen].x/ratio;    
+        game->p3.y = intersections[vertLen*horiLen-vertLen].y/ratio;    
         
-        feur->p2.x /= 10;
-        feur->p2.y /= 10;
+        game->p4.x = intersections[vertLen*horiLen-1].x/ratio;    
+        game->p4.y = intersections[vertLen*horiLen-1].y/ratio;    
 
-        feur->p3.x /= 10;
-        feur->p3.x /= 10;
-
-        feur->p4.y /= 10;
-        feur->p4.y /= 10;
 
         //CropSquares(surfaceRotated, intersections, vertLen, horiLen);
 
@@ -95,27 +91,19 @@ void on_run(GtkButton *button, gpointer user_data)
     free(accumulator);
     free(lines);
     SDL_FreeSurface(surface);
+
+    gtk_widget_queue_draw(GTK_WIDGET(game->area));
 }
 
-/*
-// Event handler for the "clicked" signal of the stop button.
-void on_confirm(GtkButton *button, gpointer user_data)
-{
-
-}
-*/
 
 
-gint GetDist(int x, int y, Feur *feur){
+
+gint GetDist(int x, int y, Game *game){
     gint dists[4] = {};
-    dists[0] = (feur->p1.x-x)*(feur->p1.x-x) + (feur->p1.y-y)*(feur->p1.y-y);
-    dists[1] = (feur->p2.x-x)*(feur->p2.x-x) + (feur->p2.y-y)*(feur->p2.y-y);
-    dists[2] = (feur->p3.x-x)*(feur->p3.x-x) + (feur->p3.y-y)*(feur->p3.y-y);
-    dists[3] = (feur->p4.x-x)*(feur->p4.x-x) + (feur->p4.y-y)*(feur->p4.y-y);
-    printf("dists[0]:%i\n", dists[0]);
-    printf("dists[1]:%i\n", dists[1]);
-    printf("dists[2]:%i\n", dists[2]);
-    printf("dists[3]:%i\n", dists[3]);
+    dists[0] = (game->p1.x-x)*(game->p1.x-x) + (game->p1.y-y)*(game->p1.y-y);
+    dists[1] = (game->p2.x-x)*(game->p2.x-x) + (game->p2.y-y)*(game->p2.y-y);
+    dists[2] = (game->p3.x-x)*(game->p3.x-x) + (game->p3.y-y)*(game->p3.y-y);
+    dists[3] = (game->p4.x-x)*(game->p4.x-x) + (game->p4.y-y)*(game->p4.y-y);
 
     gint min = dists[0];
     gint res = 0;
@@ -129,55 +117,119 @@ gint GetDist(int x, int y, Feur *feur){
     return min < 1000 ? res+1 : -1;
 }
 
-gboolean on_press(GtkDrawingArea *area, GdkEventButton *event, gpointer user_data)
-{
-    Feur *feur = user_data;
 
-    if (event->button == 1) {
-        gint toMove = GetDist(event->x, event->y, feur);
-        printf("toMove:%i\n", toMove);
-        switch (toMove){
-            case 1:
-                feur->p1.x = event->x;
-                feur->p1.y = event->y;
-                break;
-            case 2:
-                feur->p2.x = event->x;
-                feur->p2.y = event->y;
-                break;
-            case 3:
-                feur->p3.x = event->x;
-                feur->p3.y = event->y;
-                break;
-            case 4:
-                feur->p4.x = event->x;
-                feur->p4.y = event->y;
-                break;
-        }
-        gtk_widget_queue_draw(GTK_WIDGET(area));
+
+void on_cursor_motion(GtkDrawingArea *area, GdkEventButton *event, gpointer user_data){
+    Game *game = user_data;
+
+    gint x, y;
+    gdk_window_get_pointer(event->window, &x, &y, NULL);
+    if (game->moving == 0){
+        return;
     }
 
-    return TRUE;
+    switch (game->moving){
+        case 1:
+            game->p1.x = x;
+            game->p1.y = y;
+
+            break;
+        case 2:
+            game->p2.x = x;
+            game->p2.y = y;
+            break;
+        case 3:
+            game->p3.x = x;
+            game->p3.y = y;
+            break;
+        default:
+            game->p4.x = x;
+            game->p4.y = y;
+            break;
+
+    }
+    gtk_widget_queue_draw(GTK_WIDGET(area));
+    return;
+}
+
+
+
+
+
+
+void on_press(GtkDrawingArea *area, GdkEventButton *event, gpointer user_data)
+{
+    Game *game = user_data;
+
+    if (event->button == 1) {
+        gint toMove = GetDist(event->x, event->y, game);
+        //printf("toMove:%i\n", toMove);
+        switch (toMove){
+            case 1:
+                game->moving = 1;
+                break;
+            case 2:
+                game->moving = 2;
+                break;
+            case 3:
+                game->moving = 3;
+                break;
+            case 4:
+                game->moving = 4;
+                break;
+            default:
+                game->moving = 0;
+                break;
+        }
+    }
+
+    return;
+}
+
+
+void on_release(GtkDrawingArea *area, GdkEventButton *event, gpointer user_data)
+{
+    Game *game = user_data;
+
+    if (game->moving != 0)
+        game->moving = 0;        
 }
 
 
 gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer user_data)
 {
-    Feur *feur = user_data;
+    Game *game = user_data;
 
     size_t shift = dotSize / 2;;
-    cairo_set_source_rgb(cr, 0, 1, 0);
-    cairo_rectangle(cr, (feur->p1.x-shift), (feur->p1.y-shift), dotSize, dotSize);
-    cairo_rectangle(cr, (feur->p2.x-shift), (feur->p2.y-shift), dotSize, dotSize);
-    cairo_rectangle(cr, (feur->p3.x-shift), (feur->p3.y-shift), dotSize, dotSize);
-    cairo_rectangle(cr, (feur->p4.x-shift), (feur->p4.y-shift), dotSize, dotSize);
+    cairo_set_source_rgb(cr, 1, 0, 0);
+    cairo_rectangle(cr, (game->p1.x-shift), (game->p1.y-shift), dotSize, dotSize);
+    cairo_rectangle(cr, (game->p2.x-shift), (game->p2.y-shift), dotSize, dotSize);
+    cairo_rectangle(cr, (game->p3.x-shift), (game->p3.y-shift), dotSize, dotSize);
+    cairo_rectangle(cr, (game->p4.x-shift), (game->p4.y-shift), dotSize, dotSize);
+
+
+
+    cairo_set_line_width(cr, 2);
+    cairo_move_to(cr, game->p1.x, game->p1.y);
+    cairo_line_to(cr, game->p2.x, game->p2.y);
+
+    cairo_move_to(cr, game->p2.x, game->p2.y);
+    cairo_line_to(cr, game->p4.x, game->p4.y);
+
+    cairo_move_to(cr, game->p4.x, game->p4.y);
+    cairo_line_to(cr, game->p3.x, game->p3.y);
+
+    cairo_move_to(cr, game->p3.x, game->p3.y);
+    cairo_line_to(cr, game->p1.x, game->p1.y);
+
+    cairo_stroke(cr);
     cairo_fill(cr);
 
     return FALSE;
 }
 
 
-int main (int argc, char *argv[])
+int main ()
 {
     // Initializes GTK.
     gtk_init(NULL, NULL);
@@ -199,26 +251,29 @@ int main (int argc, char *argv[])
     GtkWindow* window = GTK_WINDOW(gtk_builder_get_object(builder, "test"));
     GtkDrawingArea* area = GTK_DRAWING_AREA(gtk_builder_get_object(builder, "area"));
     GtkButton* run_button = GTK_BUTTON(gtk_builder_get_object(builder, "run_button"));
-    GtkButton* confirm_button = GTK_BUTTON(gtk_builder_get_object(builder, "confirm_button"));
+    //GtkButton* confirm_button = GTK_BUTTON(gtk_builder_get_object(builder, "confirm_button"));
 
 
-    Feur feur = {
+    Game game = {
+        .window = window,
         .area = area,
-        .p1 = {0, 0},
-        .p2 = {0, 0},
-        .p3 = {0, 0},
-        .p4 = {0, 0},
+        .p1 = {0, 0, dotSize, dotSize},
+        .p2 = {0, 0, dotSize, dotSize},
+        .p3 = {0, 0, dotSize, dotSize},
+        .p4 = {0, 0, dotSize, dotSize},
     };
 
     gtk_widget_add_events (GTK_WIDGET(area), GDK_BUTTON_PRESS_MASK);
     gtk_widget_add_events (GTK_WIDGET(area), GDK_BUTTON_RELEASE_MASK);
+    gtk_widget_add_events (GTK_WIDGET(area), GDK_POINTER_MOTION_MASK);
 
     // Connects event handlers.
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-    g_signal_connect(area, "draw", G_CALLBACK(on_draw), &feur);
-    g_signal_connect(area, "button-press-event", G_CALLBACK(on_press), &feur);
-    g_signal_connect(area, "button-release-event", G_CALLBACK(on_press), &feur);
-    g_signal_connect(run_button, "clicked", G_CALLBACK(on_run), &feur);
+    g_signal_connect(area, "draw", G_CALLBACK(on_draw), &game);
+    g_signal_connect(area, "button-press-event", G_CALLBACK(on_press), &game);
+    g_signal_connect(area, "button-release-event", G_CALLBACK(on_release), &game);
+    g_signal_connect(area, "motion-notify-event", G_CALLBACK(on_cursor_motion), &game);
+    g_signal_connect(run_button, "clicked", G_CALLBACK(on_run), &game);
     //g_signal_connect(confirm_button, "clicked", G_CALLBACK(on_confirm), NULL);
 
     // Runs the main loop.

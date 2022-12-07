@@ -284,7 +284,8 @@ void cmd_test(int argc, char **argv) {
     free_buffer(buf);
 
     szt len_dataset;
-    LabeledImage* dataset = load_dataset(argv[0], &len_dataset);
+    //LabeledImage* dataset = load_dataset(argv[0], &len_dataset);
+    LabeledImage* dataset = load_cutter_set(argv[0], &len_dataset);
 
     szt correct = 0;
     for (size_t i = 0; i < len_dataset; i++) {
@@ -334,6 +335,7 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
     LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
 
     Matrix expected = new_matrix(10, nn.batch_size);
+    
     for (szt i = 0; i < iterations; i++) {
         // Randomize array
         // for (szt i = 0; i < len_dataset - 1; i++) {
@@ -370,6 +372,65 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
 
     free_matrix(&expected);
     free(dataset);
+}
+
+LabeledImage* load_cutter_set(char* path, szt* len_d) {
+    DIR *d;
+    struct dirent *dir;
+    d = opendir(path);
+    szt len = 0;
+
+    if (!d)
+        errx(1, "Could not load dataset at '%s'", path);
+
+    while ((dir = readdir(d)) != NULL) {
+        if (!strcmp(strrchr(dir->d_name, '\0') - 4, ".png")) {
+            len++;
+        }
+    }
+    closedir(d);
+
+    LabeledImage *dataset = malloc(len * sizeof(LabeledImage));
+    d = opendir(path);
+
+    szt i = 0;
+    while ((dir = readdir(d)) != NULL) {
+        if (!strcmp(strrchr(dir->d_name, '\0') - 4, ".png")) {
+            char *tmppath =
+                malloc((strlen(path) + strlen(dir->d_name) + 5) * sizeof(char));
+            load_image(dataset[i].data,
+                      strcat(strcpy(tmppath, path), dir->d_name));
+            int x = dir->d_name[0] - 48 - 1;
+            int y = dir->d_name[2] - 48 - 1;
+            dataset[i].label = x * 9 + y;
+            free(tmppath);
+            i++;
+        }
+    }
+    closedir(d);
+
+    int* labels = malloc(len * sizeof(int));
+    char* label_path = malloc((strlen(path) + 11) * sizeof(char));
+    FILE* label_file = fopen(strcat(strcpy(label_path, path), "labels.nrl"), "r");
+    char str[5];
+    i = 0;
+    while (fgets(str, 5, label_file) != NULL) {
+        
+        i++;
+    }
+    fclose(label_file);
+    free(label_path);
+
+    for (szt i = 0; i < len - 1; i++) {
+        szt j = i + rand() / (RAND_MAX / (len - i) + 1);
+        LabeledImage t = dataset[j];
+        dataset[j] = dataset[i];
+        dataset[i] = t;
+    }
+
+    printf("Loaded %zu images\n", len);
+    (*len_d) = len;
+    return dataset;
 }
 
 LabeledImage* load_dataset(char *path, szt *len_d) {

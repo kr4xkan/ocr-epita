@@ -1,14 +1,21 @@
-CC = gcc
-CFLAGS = `pkg-config --cflags gtk+-3.0` -Wall -O3
-LDLIBS = `pkg-config --libs gtk+-3.0`
+CC = gcc -g 
+CFLAGS = -Wall -Og -O3 \
+		 $(shell pkg-config --cflags gtk+-3.0 sdl2 SDL2_image SDL2_ttf)
+LDLIBS = -lm $(shell pkg-config --libs gtk+-3.0 sdl2 SDL2_image SDL2_ttf)
 
-EXE = ui
+SRC = ui.c ../preprocessing/preprocessing.c
+OBJ = ${SRC:.c=.o}
+DEP = ${SRC:.c=.d}
 
-all: $(EXE)
-
-$(foreach f, $(EXE), $(eval $(f):))
+ui: ${OBJ}
 
 .PHONY: clean
 
 clean:
-	${RM} $(EXE)
+	${RM} *.png
+	${RM} ${OBJ}
+	${RM} ${DEP}
+	${RM} ui
+
+-include ${DEP}
+

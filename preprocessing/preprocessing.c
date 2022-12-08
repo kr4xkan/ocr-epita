@@ -103,10 +103,11 @@ void binarization(char *path) {
     SDL_FreeSurface(surface);
 }
 
+/*
 int main(int argc, char **argv) {
     if (argc != 2) {
         errx(1, "Usage: ./preprocessing image_path");
     }
 
     binarization(argv[1]);
-}
+}*/

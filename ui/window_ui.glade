@@ -23,7 +23,7 @@
           </object>
         </child>
         <child>
-          <object class="GtkCheckButton" id="binarise_check">
+          <object class="GtkCheckButton" id="binarize_check">
             <property name="label" translatable="yes">Binarized</property>
             <property name="name">grayscale_check</property>
             <property name="width_request">166</property>
@@ -79,7 +79,7 @@
         </child>
         <child>
           <object class="GtkButton" id="next_button_rot">
-            <property name="label" translatable="yes">Next Step</property>
+            <property name="label" translatable="yes">button</property>
             <property name="width_request">100</property>
             <property name="height_request">80</property>
             <property name="visible">True</property>

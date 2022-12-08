@@ -26,9 +26,9 @@ int width, int height)
         for (int k = Wmin; k < Wmax; k++)
         {
             if (pixels[i*width + k] > threshold)
-                pixels[i*width + k] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 0, 0,
-0); else pixels[i*width + k] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 255, 255,
-255);
+                pixels[i*width + k] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 0, 0,0);
+	    else 
+	        pixels[i*width + k] = SDL_MapRGB(SDL_PIXELFORMAT_RGB888, 255, 255, 255);
         }
     }
 }*/
@@ -94,7 +94,7 @@ int otsu(SDL_Surface *img, int Hmin, int Wmin, int Hmax, int Wmax, int w,
             threshold = i;
         }
     }
-    return threshold + 11;
+    return threshold - 15;
 }
 
 void binarize_square(SDL_PixelFormat *format, Uint32 *pixels, int threshold,

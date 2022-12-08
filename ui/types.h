@@ -11,7 +11,9 @@ typedef struct {
 } DrawArea;
 
 typedef struct {
-    SDL_Surface *currentImage;
+    gchar *current_image;
+    SDL_Surface *current_surface;
+    SDL_Surface **cells;
 
     GtkWindow *opening_window;
     GtkFileChooserButton *file_chooser;
@@ -19,9 +21,8 @@ typedef struct {
 
 
     GtkWindow *line_check_window;
-    GtkDrawingArea *area;
-    GtkButton *next_lines;
     GtkImage *img_lines;
+    GtkButton *next_lines;
 
     DrawArea draw;
 } AppState;

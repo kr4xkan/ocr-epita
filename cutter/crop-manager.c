@@ -87,6 +87,7 @@ int DontAdd(Intersection *coords, size_t x, size_t y, size_t nbIntersections) {
 
 SDL_Surface **CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, size_t horiLen){
     SDL_Surface **res = malloc(81*sizeof(SDL_Surface*));
+
     for (size_t y = 0; y < horiLen-1; y++){
         for (size_t x = 0; x < vertLen-1; x++){
             Intersection current = coords[y*vertLen + x];
@@ -118,8 +119,8 @@ SDL_Surface **CropSquares(SDL_Surface *surface, Intersection *coords, size_t ver
 SDL_Surface **ManualCrop(SDL_Surface *surface, Intersection *corners){
     Intersection *coords = malloc(100*sizeof(Intersection));
 
-    Intersection *leftSide = FindPoints(corners[0], corners[1]);
-    Intersection *rightSide = FindPoints(corners[2], corners[3]);
+    Intersection *leftSide = FindPoints(corners[0], corners[2]);
+    Intersection *rightSide = FindPoints(corners[1], corners[3]);
 
     for (size_t i = 0; i < 10; i++){
         Intersection *line = FindPoints(leftSide[i], rightSide[i]);
@@ -142,7 +143,6 @@ Intersection *FindPoints(Intersection a, Intersection b){
 
     int dx = ((int)b.x - (int)a.x)/9;
     int dy = ((int)b.y - (int)a.y)/9;
-    printf("%i  %i\n", dx, dy);
     for (size_t i = 1; i < 9; i++){
         res[i].x = res[i-1].x + dx;
         res[i].y = res[i-1].y + dy;

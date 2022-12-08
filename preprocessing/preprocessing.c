@@ -2,6 +2,7 @@
 #include <SDL2/SDL_image.h>
 #include <err.h>
 
+
 SDL_Surface *load_image(const char *path) {
     SDL_Surface *surf = IMG_Load(path);
     SDL_Surface *res =
@@ -117,14 +118,16 @@ void dumb_bin(SDL_Surface *surface, int cutter) {
 
 
 
-void binarization(char *path) {
+void binarization(char *path, char *mode) {
     SDL_Surface *surface = load_image(path);
 
     surface_to_grayscale(surface);
 
     IMG_SavePNG(surface, "grayscale.png");
 
-    dumb_bin(surface, 1);
+    int x = sscanf(mode, "%d", &x);
+
+    dumb_bin(surface, x);
 
     IMG_SavePNG(surface, "binary.png");
 
@@ -132,9 +135,9 @@ void binarization(char *path) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        errx(1, "Usage: ./preprocessing image_path");
+    if (argc != 3) {
+        errx(1, "Usage: ./preprocessing image_path mode");
     }
 
-    binarization(argv[1]);
+    binarization(argv[1], argv[2]);
 }

@@ -23,5 +23,6 @@ binarization: binarization.o
 clean:
 	${RM} ${OBJ}
 	${RM} ${EXE}
+	rm *.png
 
 # END

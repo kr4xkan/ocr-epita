@@ -28,15 +28,15 @@ void surface_to_grayscale(SDL_Surface *surface) {
     SDL_UnlockSurface(surface);
 }
 
-int otsu(SDL_Surface *img, int w, int h) {
+int otsu(SDL_Surface *img, int hmin, int wmin, int hmax, int wmax, int w) {
     Uint32 *pixels = img->pixels;
     double histo[256];
     for (size_t h = 0; h < 256; h++)
 	    histo[h] = 0;
-    int nbpix = w * h;
+    int nbpix = (wmax - wmin) * (hmax - hmin);
     int threshold = 0;
-    for (int x = 0; x < w; x++) {
-        for (int y = 0; y < h; y++) {
+    for (int x = wmin; x < wmax; x++) {
+        for (int y = hmin; y < hmax; y++) {
             Uint8 r, g, b;
             Uint32 pixel = pixels[y * w + x];
             SDL_GetRGB(pixel, img->format, &r, &g, &b);
@@ -71,26 +71,51 @@ int otsu(SDL_Surface *img, int w, int h) {
             threshold = i;
         }
     }
-    printf("%i\n",threshold);
     return threshold - 15;
 }
 
-void dumb_bin(SDL_Surface *surface) {
+void binarize_square(SDL_Surface *surface, int threshold,
+                     int Hmin, int Wmin, int Hmax, int Wmax, int w) {
     Uint32 *pixels = surface->pixels;
-    int w = surface->w;
-    int h = surface->h;
-    int threshold = otsu(surface, w, h);
-    for (int i = 0; i < h; i++) {
-        for (int k = 0; k < w; k++) {
+    SDL_PixelFormat *format = surface->format;
+    for (int x = Wmin; x < Wmax; x++) {
+        for (int y = Hmin; y < Hmax; y++) {
             Uint8 r, g, b;
-            SDL_GetRGB(pixels[i * w + k], surface->format, &r, &g, &b);
+            SDL_GetRGB(pixels[y * w + x], format, &r, &g, &b);
+            // printf("%u\n", pixels[i*w+k]);
             if (r < threshold) {
-                pixels[w * i + k] = SDL_MapRGB(surface->format, 255, 255, 255);
+                pixels[w * y + x] = SDL_MapRGB(format, 255, 255, 255);
             } else
-                pixels[w * i + k] = SDL_MapRGB(surface->format, 0, 0, 0);
+                pixels[w * y + x] = SDL_MapRGB(format, 0, 0, 0);
         }
     }
 }
+
+void dumb_bin(SDL_Surface *surface, int cutter) {
+    int w = surface->w;
+    int h = surface->h;
+    int* h_list = calloc(cutter+1, sizeof(int));
+    int* w_list = calloc(cutter+1, sizeof(int));
+    int cuth = h / cutter;
+    int cutw = w / cutter;
+    for (int i = 1; i < (cutter+1); i++)
+    {
+	 h_list[i] += cuth * i;
+         w_list[i] += cutw * i;
+    }
+
+    for (int a = 1; a < (cutter+1) ; a++)
+    {
+	for (int b = 1; b < (cutter+1); b++)
+	{
+	    int threshold = otsu(surface, h_list[b-1], w_list[a-1], h_list[b], w_list[a], w);
+	    binarize_square(surface, threshold, h_list[b - 1],
+                            w_list[a - 1], h_list[b], w_list[a], w);
+	}
+    }
+}
+
+
 
 void binarization(char *path) {
     SDL_Surface *surface = load_image(path);
@@ -99,7 +124,7 @@ void binarization(char *path) {
 
     IMG_SavePNG(surface, "grayscale.png");
 
-    dumb_bin(surface);
+    dumb_bin(surface, 1);
 
     IMG_SavePNG(surface, "binary.png");
 

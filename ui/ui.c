@@ -5,11 +5,13 @@
 #include <SDL2/SDL_surface.h>
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include "/home/kam/SPE/ocr-epita/cutter/cutter.h"
-#include "/home/kam/SPE/ocr-epita/neural-net/neural-net.h"
+#include "../cutter/cutter.h"
+#include "../neural-net/neural-net.h"
 #include "../preprocessing/preprocessing.h"
-#include "/home/kam/SPE/ocr-epita/solver/solver.h"
+#include "../solver/solver.h"
+#include "../utils.h"
 
 
 //global variables
@@ -27,7 +29,9 @@ GtkFileChooserButton *file_chooser;
 GtkWindow *manual_rotation;
 GtkImage *image;
 SDL_Surface *surf_rot;
+SDL_Surface *tmp;
 GtkButton *next_button_rot;
+GtkEntry *angle_entry;
 
 //binarisation window
 GtkWindow *binarisation;
@@ -36,6 +40,7 @@ SDL_Surface *surf_bin;
 GtkImage *bin_image;
 GtkToggleButton *binarize_check;
 GtkButton *next_button_bin;
+GtkButton *next_button_cutter;
 
 //solved_window
 GtkWindow *solved;
@@ -94,7 +99,7 @@ double set_gtk_image_from_surface (GtkImage* img_container, SDL_Surface *surface
     return (double)nW/(double)surface->w;
 }
 
-SDL_Surface *LoadImage(const char *path) {
+SDL_Surface *loadImage(const char *path) {
     SDL_Surface *tmp = IMG_Load(path);
     if (tmp == NULL)
 	errx(EXIT_FAILURE, "%s", SDL_GetError());
@@ -105,7 +110,7 @@ SDL_Surface *LoadImage(const char *path) {
     return res;
 }
 gchar* select_file(GtkWindow *window, GdkEvent *event){
-	surf_rot = LoadImage(gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(file_chooser)));
+	surf_rot = loadImage(gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(file_chooser)));
 	filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(file_chooser));
 	return filename;
 }
@@ -125,19 +130,42 @@ gchar* select_file(GtkWindow *window, GdkEvent *event){
 
 
 void on_open_button(GtkWidget *widget, GdkEvent *event){
-	float ratio = set_gtk_image_from_surface(image, surf_rot, 1);
+	set_gtk_image_from_surface(image, surf_rot, 1);
 
 	gtk_widget_hide(GTK_WIDGET(opening_window));
 	gtk_widget_show(GTK_WIDGET(manual_rotation));
 }
+
+
+
+
+void on_rotate(GtkWidget *widget, GdkEvent *event){
+
+	tmp = surf_rot;
+	const gchar* angle_text;
+	angle_text = gtk_entry_get_text(angle_entry);
+
+	if (angle_text == NULL){
+		tmp = surf_rot;
+	}
+	else{
+
+		float angle =  atof(angle_text);
+		tmp = RotateSurface(surf_rot, angle);
+	}
+	set_gtk_image_from_surface(image, tmp, 1);
+
+}
 void on_next_button_rot(GtkWidget *widget, GdkEvent *event){
 
 //binarisation
-	binarization(filename);
-	surf_bin = LoadImage("binary.png");
+	surf_rot = tmp;
+	binarization(surf_rot);
+	surf_bin = loadImage("binary.png");
 	set_gtk_image_from_surface(bin_image, surf_bin, 1);
 
 	gtk_widget_hide(GTK_WIDGET(manual_rotation));
+	gtk_toggle_button_set_active(binarize_check, TRUE);
 	gtk_widget_show(GTK_WIDGET(binarisation));
 }
 
@@ -153,9 +181,13 @@ void on_binarize_check(GtkWidget *widget, GdkEvent *event){
 
 
 void on_next_button_bin(GtkWidget *widget, GdkEvent *event){
+// partie de romain
 	gtk_widget_hide(GTK_WIDGET(binarisation));
 	gtk_widget_show(GTK_WIDGET(solved));
 }
+
+
+void on_next_button_cutter( GtkWidget *widget, GdkEvent *event){}
 
 void on_save_button(GtkWidget *widget, GdkEvent *event){
 }
@@ -201,7 +233,7 @@ int main(){
 	file_chooser = GTK_FILE_CHOOSER_BUTTON(gtk_builder_get_object(builder, "file_chooser"));
 	image = GTK_IMAGE(gtk_builder_get_object(builder,"image1"));
 	next_button_rot = GTK_BUTTON(gtk_builder_get_object(builder,"next_button_rot"));
-	
+	angle_entry = GTK_ENTRY(gtk_builder_get_object(builder, "angle_entry"));
 	
 	//binarisation components
 	binarisation = GTK_WINDOW(gtk_builder_get_object(builder, "binarisation"));
@@ -210,6 +242,7 @@ int main(){
 	binarize_check = GTK_TOGGLE_BUTTON(gtk_builder_get_object(builder, "binarize_check"));
 	next_button_bin = GTK_BUTTON(gtk_builder_get_object(builder,"next_button_bin"));
 
+	next_button_cutter = GTK_BUTTON(gtk_builder_get_object(builder,"next_button_cutter"));
 
 	//solved components
 	solved = GTK_WINDOW(gtk_builder_get_object(builder,"solved"));
@@ -224,10 +257,10 @@ int main(){
 	g_signal_connect(binarisation, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	g_signal_connect(solved, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	
-	//g_signal_connect(open_button, "clicked", G_CALLBACK(on_open_button), &);
 	g_signal_connect(file_chooser, "file-set", G_CALLBACK(select_file),NULL);
 	g_signal_connect(open_button, "clicked", G_CALLBACK(on_open_button),NULL);
 	g_signal_connect(next_button_rot, "clicked", G_CALLBACK(on_next_button_rot), NULL);
+	g_signal_connect(angle_entry, "changed", G_CALLBACK(on_rotate), NULL);
 	g_signal_connect(binarize_check, "toggled", G_CALLBACK(on_binarize_check),NULL);
 	g_signal_connect(next_button_bin, "clicked", G_CALLBACK(on_next_button_bin), NULL);
 	g_signal_connect(save_button, "clicked", G_CALLBACK(on_save_button), NULL);

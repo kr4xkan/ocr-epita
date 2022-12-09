@@ -21,9 +21,12 @@
             <property name="can_focus">False</property>
             <property name="stock">gtk-missing-image</property>
           </object>
+          <packing>
+            <property name="y">50</property>
+          </packing>
         </child>
         <child>
-          <object class="GtkCheckButton" id="binarise_check">
+          <object class="GtkCheckButton" id="binarize_check">
             <property name="label" translatable="yes">Binarized</property>
             <property name="name">grayscale_check</property>
             <property name="width_request">166</property>
@@ -34,13 +37,13 @@
             <property name="draw_indicator">True</property>
           </object>
           <packing>
-            <property name="x">302</property>
-            <property name="y">70</property>
+            <property name="x">1000</property>
+            <property name="y">229</property>
           </packing>
         </child>
         <child>
           <object class="GtkButton" id="next_button_bin">
-            <property name="label" translatable="yes">Next Step</property>
+            <property name="label" translatable="yes">Next Step to cut lines</property>
             <property name="width_request">100</property>
             <property name="height_request">64</property>
             <property name="visible">True</property>
@@ -48,14 +51,46 @@
             <property name="receives_default">True</property>
           </object>
           <packing>
-            <property name="x">298</property>
-            <property name="y">200</property>
+            <property name="x">1000</property>
+            <property name="y">526</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="title bin">
+            <property name="width_request">100</property>
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Binarization</property>
+            <attributes>
+              <attribute name="font-desc" value="Sans 20"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="x">576</property>
+            <property name="y">17</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="next_button_cutter">
+            <property name="label" translatable="yes">button</property>
+            <property name="width_request">100</property>
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+          </object>
+          <packing>
+            <property name="x">922</property>
+            <property name="y">328</property>
           </packing>
         </child>
       </object>
     </child>
   </object>
   <object class="GtkWindow" id="manual_rotation">
+    <property name="width_request">400</property>
+    <property name="height_request">400</property>
     <property name="can_focus">False</property>
     <child type="titlebar">
       <placeholder/>
@@ -79,7 +114,7 @@
         </child>
         <child>
           <object class="GtkButton" id="next_button_rot">
-            <property name="label" translatable="yes">button</property>
+            <property name="label" translatable="yes">Next Step</property>
             <property name="width_request">100</property>
             <property name="height_request">80</property>
             <property name="visible">True</property>
@@ -87,8 +122,21 @@
             <property name="receives_default">True</property>
           </object>
           <packing>
-            <property name="x">336</property>
-            <property name="y">180</property>
+            <property name="x">506</property>
+            <property name="y">183</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkEntry" id="angle_entry">
+            <property name="width_request">239</property>
+            <property name="height_request">80</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="text" translatable="yes">Enter a degree to rotate</property>
+          </object>
+          <packing>
+            <property name="x">432</property>
+            <property name="y">68</property>
           </packing>
         </child>
       </object>

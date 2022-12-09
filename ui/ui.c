@@ -12,6 +12,9 @@
 #include "../preprocessing/preprocessing.h"
 #include "../solver/solver.h"
 #include "../utils.h"
+#include "drawarea.h"
+#include "ui.h"
+
 
 
 //global variables
@@ -109,6 +112,8 @@ SDL_Surface *loadImage(const char *path) {
     SDL_FreeSurface(tmp);
     return res;
 }
+
+
 gchar* select_file(GtkWindow *window, GdkEvent *event){
 	surf_rot = loadImage(gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(file_chooser)));
 	tmp = surf_rot;
@@ -205,12 +210,25 @@ void on_binarize_check(GtkWidget *widget, GdkEvent *event){
 }
 
 
-void on_next_button_bin(GtkWidget *widget, GdkEvent *event){
+void on_next_button_bin(GtkWidget *widget, GdkEvent *event, gpointer user_data){
 // partie de romain
+	AppState *app_state = user_data;
+
+	gtk_widget_show(GTK_WIDGET(app_state->line_check_window));
+	gtk_widget_show(GTK_WIDGET(app_state->next_lines));
 	gtk_widget_hide(GTK_WIDGET(binarisation));
-	gtk_widget_show(GTK_WIDGET(solved));
+
+	app_state->current_surface = surf_bin;
+	app_state->draw.ratio = set_gtk_image_from_surface(app_state->img_lines, app_state->current_surface, 1);
+
 }
 
+
+
+void on_run(GtkButton *open_button, gpointer user_data){
+    AppState *app_state = user_data;
+    Run(app_state);
+}
 
 void on_next_button_cutter( GtkWidget *widget, GdkEvent *event){}
 
@@ -260,6 +278,8 @@ int main(){
 	next_button_rot = GTK_BUTTON(gtk_builder_get_object(builder,"next_button_rot"));
 	angle_entry = GTK_ENTRY(gtk_builder_get_object(builder, "angle_entry"));
 
+
+
 	//binarisation components
 	binarisation = GTK_WINDOW(gtk_builder_get_object(builder, "binarisation"));
 	fixed_container_bin = GTK_FIXED(gtk_builder_get_object(builder, "fixed_container_bin"));
@@ -269,6 +289,30 @@ int main(){
 
 	next_button_cutter = GTK_BUTTON(gtk_builder_get_object(builder,"next_button_cutter"));
 
+
+
+	//cutter components
+	GtkWindow *line_check_window = GTK_WINDOW(gtk_builder_get_object(builder, "line_check_window"));
+    	GtkDrawingArea *area = GTK_DRAWING_AREA(gtk_builder_get_object(builder, "area"));
+    	GtkImage *img_lines = GTK_IMAGE(gtk_builder_get_object(builder, "img_lines"));
+    	GtkButton *next_lines =  GTK_BUTTON(gtk_builder_get_object(builder, "next_lines"));
+
+    	AppState app_state = {
+
+        	.line_check_window = line_check_window,
+        	.img_lines = img_lines,
+        	.next_lines = next_lines,
+        	.draw = {
+            		.area = area,
+            		.p1 = {0, 0, dotSize, dotSize},
+            		.p2 = {0, 0, dotSize, dotSize},
+            		.p3 = {0, 0, dotSize, dotSize},
+            		.p4 = {0, 0, dotSize, dotSize},
+        	}
+    	};
+
+
+
 	//solved components
 	solved = GTK_WINDOW(gtk_builder_get_object(builder,"solved"));
 	fixed_container3 = GTK_FIXED(gtk_builder_get_object(builder, "fixed_container3"));
@@ -277,17 +321,47 @@ int main(){
 
 
 	//signals
+//WINDOW
 	g_signal_connect(opening_window, "destroy", G_CALLBACK(gtk_main_quit),NULL);
 	g_signal_connect(manual_rotation, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	g_signal_connect(binarisation, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	g_signal_connect(solved, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-	
+	g_signal_connect(line_check_window, "destroy",G_CALLBACK(gtk_main_quit),NULL);
+//
+//OPEN
+//
 	g_signal_connect(file_chooser, "file-set", G_CALLBACK(select_file),NULL);
 	g_signal_connect(open_button, "clicked", G_CALLBACK(on_open_button),NULL);
 	g_signal_connect(next_button_rot, "clicked", G_CALLBACK(on_next_button_rot), NULL);
+
+//
+//ROT
+//
 	g_signal_connect(angle_entry, "changed", G_CALLBACK(on_rotate), NULL);
+//
+//BIN
+//
 	g_signal_connect(binarize_check, "toggled", G_CALLBACK(on_binarize_check),NULL);
-	g_signal_connect(next_button_bin, "clicked", G_CALLBACK(on_next_button_bin), NULL);
+	g_signal_connect(next_button_bin, "clicked", G_CALLBACK(on_next_button_bin),&app_state);
+	
+//
+//ROMAIN
+//
+	g_signal_connect(next_button_bin,"clicked",G_CALLBACK(on_run), &app_state);
+	gtk_widget_add_events (GTK_WIDGET(area), GDK_BUTTON_PRESS_MASK);
+    	gtk_widget_add_events (GTK_WIDGET(area), GDK_BUTTON_RELEASE_MASK);
+    	gtk_widget_add_events (GTK_WIDGET(area), GDK_POINTER_MOTION_MASK);
+    	g_signal_connect(area, "draw", G_CALLBACK(on_draw), &app_state);
+    	g_signal_connect(area, "button-press-event", G_CALLBACK(on_press), &app_state);
+    	g_signal_connect(area, "button-release-event", G_CALLBACK(on_release), &app_state);
+    	g_signal_connect(area, "motion-notify-event", G_CALLBACK(on_cursor_motion), &app_state);
+
+    	g_signal_connect(next_lines, "clicked", G_CALLBACK(on_next_button_cutter), &app_state);
+
+//
+//
+//
+
 	g_signal_connect(save_button, "clicked", G_CALLBACK(on_save_button), NULL);
 
 	//show windows

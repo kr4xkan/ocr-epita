@@ -50,6 +50,12 @@ GtkWindow *solved;
 GtkFixed *fixed_container3;
 GtkImage *image3;
 GtkButton *save_button;
+SDL_Rect rect;
+SDL_Surface *void_grid;
+
+SDL_Surface *numb_solver;
+
+
 
 gchar* filename;
 
@@ -121,35 +127,81 @@ gchar* select_file(GtkWindow *window){
     return filename;
 }
 
-/*
-   void fill_grid(int number, GtkImage *im){
-   switch (number)
+
+
+void load_number(int number_grid){
+   switch (number_grid)
    {
-   case 1:
-   im = 
-   break;
-   case 2:
-   im= 
-   break;
-   case 3:
-   im =
-   break;
-   case 4:
-   im =
-   break;
-   case 5:
-   case 6:
-   case 7:
-   case 8:
-   im=
-   break;
-   case 9:
-   im =7
-   break;
+	case 1:
+		numb_solver = loadImage("../solver/chiffres/1.jpg"); 
+   		break;
+	case 2:
+		numb_solver = loadImage("../solver/chiffres/2.jpg");
+   		break;
+   	case 3:
+		numb_solver = loadImage("../solver/chiffres/3.jpg"); 
+   		break;
+   	case 4:
+		numb_solver = loadImage("../solver/chiffres/4.jpg"); 
+   		break;
+   	case 5:
+		numb_solver = loadImage("../solver/chiffres/5.jpg");
+		break;
+	case 6:
+		numb_solver = loadImage("../solver/chiffres/6.jpg"); 
+   		break;
+	case 7:
+		numb_solver = loadImage("../solver/chiffres/7.jpg"); 
+   		break;
+	case 8:
+		numb_solver = loadImage("../solver/chiffres/8.jpg"); 
+   		break;
+   	case 9:
+		numb_solver = loadImage("../solver/chiffres/9.jpg"); 
+   		break;
 
    }
+}
 
-*/
+//recupere l'array de 10 10 de la fonction solver
+void grid_to_image(int grid[9][9]){
+
+	void_grid = LoadImage("../void_grid.jpg");
+
+	for (int i = 0; i<9 ; i++){
+		for (int j = 0; j<9 ; j++){
+			load_number(grid[i][j]);
+
+			SDL_BlitSurface(numb_solver, NULL, void_grid, &rect);
+
+			if(rect.y + 67 >= 600){
+				rect.y =0;
+			}
+			else{
+				rect.y = rect.y + 67;
+			}
+		}
+	rect.x =0;
+	}				
+	set_gtk_image_from_surface(image3, void_grid, 1);
+}
+
+//array pour tester la fonction grid_to_image
+int grid_ex[9][9] = {{1,2,3,4,5,6,7,8,9},
+		{1,2,3,4,5,6,7,8,9},
+		{1,2,3,4,5,6,7,8,9},
+
+		{1,2,3,4,5,6,7,8,9},
+		{1,2,3,4,5,6,7,8,9},
+		{1,2,3,4,5,6,7,8,9},
+		
+		{1,2,3,4,5,6,7,8,9},
+		{1,2,3,4,5,6,7,8,9},
+		{1,2,3,4,5,6,7,8,9}};
+
+
+
+
 
 
 
@@ -222,17 +274,32 @@ void on_next_button_bin(GtkWidget *widget, gpointer user_data){
     app_state->draw.ratio = set_gtk_image_from_surface(app_state->img_lines, app_state->current_surface, 1);
 
 }
-
-
-
 void on_run(GtkButton *open_button, gpointer user_data){
     AppState *app_state = user_data;
     Run(app_state);
 }
 
-void on_next_button_cutter( GtkWidget *widget){}
+
+
+void on_next_button_cutter(GtkWidget *widget, gpointer user_data){
+//neural-network 
+//neural-network 
+//neural-network 
+//neural-network 
+//add the solver function to the grid from the nn
+//
+	AppState *app_state = user_data;
+//not tried cause errors in cutter part
+//grid_to_image(grid_ex);
+
+	gtk_widget_hide(GTK_WIDGET(app_state->line_check_window));
+	
+	gtk_widget_show(GTK_WIDGET(solved));
+}
 
 void on_save_button(GtkWidget *widget){
+	IMG_SavePNG(void_grid, "solved_sudoku.png");
+	gtk_widget_hide(GTK_WIDGET(solved));
 }
 
 
@@ -318,7 +385,10 @@ int main(){
     fixed_container3 = GTK_FIXED(gtk_builder_get_object(builder, "fixed_container3"));
     image3 = GTK_IMAGE(gtk_builder_get_object(builder, "image3"));
     save_button = GTK_BUTTON(gtk_builder_get_object(builder, "save_button"));
-
+    rect.x = 0;
+    rect.y = 0;
+    rect.h = 66;
+    rect.w = 66;
 
     //signals
     //WINDOW

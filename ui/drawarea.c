@@ -49,6 +49,7 @@ void on_run(AppState* state)
         Intersection *intersections = FindIntersections(surfaceRotated, spaceRotated, vertLen, horiLen);
 
         ratio = (float)580/(float)surfaceRotated->w;
+        state->draw.ratio = ratio;
 
         game->p1.x = intersections[0].x*ratio;    
         game->p1.y = intersections[0].y*ratio;    

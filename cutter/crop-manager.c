@@ -98,13 +98,13 @@ SDL_Surface **CropSquares(SDL_Surface *surface, Intersection *coords, size_t ver
                     squareHeight);
 
             res[y*(vertLen-1)+x] = square;
-            char name[] = {x+'1', '-', y+'1', '.', 'p', 'n', 'g', '\0'};
-            char *newStr = malloc((strlen(name) + 15) * sizeof(char));
-            strcpy(newStr, "squares/");
-            strcat(newStr, name);
-            IMG_SavePNG(square, newStr);
-            //SDL_FreeSurface(square);
-            free(newStr);
+          char name[] = {x+'1', '-', y+'1', '.', 'p', 'n', 'g', '\0'};
+          char *newStr = malloc((strlen(name) + 15) * sizeof(char));
+          strcpy(newStr, "squares/");
+          strcat(newStr, name);
+          IMG_SavePNG(square, newStr);
+          //SDL_FreeSurface(square);
+          free(newStr);
         }
     }
     return res;
@@ -140,7 +140,6 @@ Intersection *FindPoints(Intersection a, Intersection b){
 
     int dx = ((int)b.x - (int)a.x)/9;
     int dy = ((int)b.y - (int)a.y)/9;
-    printf("%i  %i\n", dx, dy);
     for (size_t i = 1; i < 9; i++){
         res[i].x = res[i-1].x + dx;
         res[i].y = res[i-1].y + dy;

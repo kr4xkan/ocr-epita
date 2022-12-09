@@ -30,4 +30,5 @@ typedef struct {
     SDL_Surface* rotate_surf;
     SDL_Surface** cells;
     DrawArea draw;
+    int sudoku[9][9];
 } AppState;

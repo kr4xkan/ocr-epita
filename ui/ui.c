@@ -132,26 +132,15 @@ void on_next_lines(GtkButton* self, gpointer user_data) {
 
     app_state->cells = ManualCutter(app_state->current_surf, corners);
 
-    char grid[9][9] = {
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-    };
     for (size_t i = 0; i < 81; i++) {
         size_t x = i / 9;
         size_t y = i % 9;
-        grid[x][y] = recognize_digit(app_state->cells[i]);
+        app_state->sudoku[x][y] = recognize_digit(app_state->cells[i]);
         free(app_state->cells[i]);
     }
     free(app_state->cells);
 
-    char changed[9][9] = {
+    int changed[9][9] = {
         {0, 0, 0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -162,7 +151,7 @@ void on_next_lines(GtkButton* self, gpointer user_data) {
         {0, 0, 0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0},
     };
-    SDL_Surface* grid_surface = make_sudoku_grid(grid, changed);
+    SDL_Surface* grid_surface = make_sudoku_grid(app_state->sudoku, changed);
     set_gtk_image_from_surface(app_state->img_neural_res, grid_surface, 2);
     SDL_FreeSurface(grid_surface);
     set_gtk_image_from_surface(app_state->img_neural, app_state->current_surf, 2);
@@ -189,38 +178,65 @@ void on_next_neural(GtkButton* self, gpointer user_data) {
 // DO SOLVER + SHOW RESOLVED GRID
 // DO SOLVER + SHOW RESOLVED GRID
 // DO SOLVER + SHOW RESOLVED GRID
-    char grid[9][9] = {
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8},
-    };
-    char changed[9][9] = {
-        {0, 0, 1, 0, 0, 0, 0, 0, 0},
-        {1, 0, 1, 0, 0, 0, 0, 0, 0},
-        {1, 1, 1, 0, 0, 0, 1, 1, 1},
-        {0, 0, 1, 0, 1, 1, 0, 0, 0},
-        {1, 0, 0, 0, 0, 0, 0, 0, 0},
+
+    int changed[9][9] = {
         {0, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 1, 0, 0, 0},
-        {1, 0, 0, 1, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0, 0, 0},
     };
 
+    int grid[9][9];
+    memcpy(grid, app_state->sudoku, sizeof(int) * 81);
+    int res = solver(grid, 0, 0);
+    
+    if (!res) {
+        GtkDialogFlags flags = GTK_DIALOG_DESTROY_WITH_PARENT;
+        GtkWidget* dialog = gtk_message_dialog_new (app_state->w_solver,
+                                         flags,
+                                         GTK_MESSAGE_INFO,
+                                         GTK_BUTTONS_CLOSE,
+                                         "Could not find solution to sudoku");
+        g_signal_connect_swapped (dialog, "response",
+                                  G_CALLBACK (gtk_widget_destroy),
+                                  dialog);
+        gtk_dialog_run(GTK_DIALOG(dialog));
+    }
+
+    for (size_t i = 0; i < 9; i++)
+        for (size_t j = 0; j < 9; j++)
+            changed[i][j] = app_state->sudoku[i][j] != grid[i][j];
+
     SDL_Surface* grid_surface = make_sudoku_grid(grid, changed);
     set_gtk_image_from_surface(app_state->img_solver, grid_surface, 0);
-    SDL_FreeSurface(grid_surface);
+    SDL_FreeSurface(app_state->current_surf);
+    app_state->current_surf = grid_surface;
 }
 
 void on_next_solver(GtkButton* self, gpointer user_data) {
     AppState* app_state = user_data;
     gtk_widget_show(GTK_WIDGET(app_state->w_home));
     gtk_widget_hide(GTK_WIDGET(app_state->w_solver));
+}
+
+void on_save(GtkButton* self, gpointer user_data) {
+    AppState* app_state = user_data; 
+    IMG_SavePNG(app_state->current_surf, "./sudoku.png");
+    GtkDialogFlags flags = GTK_DIALOG_DESTROY_WITH_PARENT;
+    GtkWidget* dialog = gtk_message_dialog_new (app_state->w_solver,
+                                     flags,
+                                     GTK_MESSAGE_INFO,
+                                     GTK_BUTTONS_CLOSE,
+                                     "Solved Sudoku saved at: ./sudoku.png");
+    g_signal_connect_swapped (dialog, "response",
+                              G_CALLBACK (gtk_widget_destroy),
+                              dialog);
+    gtk_dialog_run(GTK_DIALOG(dialog));
 }
 
 void on_rotate_image(GtkRange* slider, gpointer user_data) {
@@ -233,7 +249,7 @@ void on_rotate_image(GtkRange* slider, gpointer user_data) {
     set_gtk_image_from_surface(app_state->img_preprocessing, app_state->rotate_surf, 0);
 }
 
-SDL_Surface* make_sudoku_grid(char grid[9][9], char changed[9][9]) {
+SDL_Surface* make_sudoku_grid(int grid[9][9], int changed[9][9]) {
     TTF_Font* Sans = TTF_OpenFont("./Sans.ttf", 24);
     SDL_Color Black = {0, 0, 0};
     SDL_Color Red = {66, 135, 245};
@@ -263,6 +279,10 @@ SDL_Surface* make_sudoku_grid(char grid[9][9], char changed[9][9]) {
 
     TTF_CloseFont(Sans);
     return surf;
+}
+
+void on_app_quit(GtkWindow* window, gpointer user_data) {
+    gtk_main_quit();
 }
 
 int main (int argc, char *argv[])
@@ -318,6 +338,8 @@ int main (int argc, char *argv[])
             gtk_builder_get_object(builder, "next_neural"));
     GtkButton* next_solver = GTK_BUTTON(
             gtk_builder_get_object(builder, "next_solver"));
+    GtkButton* save_res = GTK_BUTTON(
+            gtk_builder_get_object(builder, "save_res"));
     GtkScale* slider_rotate = GTK_SCALE(
             gtk_builder_get_object(builder, "slider_rotate"));
     gtk_range_set_range(GTK_RANGE(slider_rotate), 0, 180);
@@ -363,12 +385,13 @@ int main (int argc, char *argv[])
     g_signal_connect(next_lines, "clicked", G_CALLBACK(on_next_lines), &app_state);
     g_signal_connect(next_neural, "clicked", G_CALLBACK(on_next_neural), &app_state);
     g_signal_connect(next_solver, "clicked", G_CALLBACK(on_next_solver), &app_state);
+    g_signal_connect(save_res, "clicked", G_CALLBACK(on_save), &app_state);
     g_signal_connect(GTK_RANGE(slider_rotate), "value-changed", G_CALLBACK(on_rotate_image), &app_state);
-    g_signal_connect(w_home, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-    g_signal_connect(w_preprocessing, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-    g_signal_connect(w_lines, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-    g_signal_connect(w_neural, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-    g_signal_connect(w_solver, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    g_signal_connect(w_home, "destroy", G_CALLBACK(on_app_quit), &app_state);
+    g_signal_connect(w_preprocessing, "destroy", G_CALLBACK(on_app_quit), &app_state);
+    g_signal_connect(w_lines, "destroy", G_CALLBACK(on_app_quit), &app_state);
+    g_signal_connect(w_neural, "destroy", G_CALLBACK(on_app_quit), &app_state);
+    g_signal_connect(w_solver, "destroy", G_CALLBACK(on_app_quit), &app_state);
 
     gtk_widget_show(GTK_WIDGET(w_home));
     // Runs the main loop.

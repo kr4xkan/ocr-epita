@@ -8,6 +8,7 @@
 #include "drawarea.h"
 #include "types.h"
 #include "../neural-net/neural-net.h"
+#include "../solver/solver.h"
 
 double set_gtk_image_from_surface (GtkImage* img_container, SDL_Surface *surface, char preserve_ratio);
-SDL_Surface* make_sudoku_grid(char grid[9][9], char changed[9][9]);
+SDL_Surface* make_sudoku_grid(int grid[9][9], int changed[9][9]);

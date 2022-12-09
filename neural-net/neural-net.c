@@ -12,8 +12,7 @@
 #include "neural-net.h"
 
 void free_network(NeuralNetwork* nn) {
-    free(nn->layers[0].A.v);
-    for (szt i = 1; i < nn->layer_count; i++) {
+    for (szt i = 0; i < nn->layer_count; i++) {
         free_layer(&nn->layers[i]);
     }
     free(nn->layers);
@@ -49,11 +48,9 @@ Layer new_layer(
     l.size = num_nodes;
     l.activation = activation;
     l.A = new_matrix(num_nodes, batch_size);
-    if (prev_num_nodes != 0) {
-        l.Z = new_matrix(num_nodes, batch_size);
-        l.B = new_random_matrix(num_nodes, 1);
-        l.W = new_random_matrix(num_nodes, prev_num_nodes);
-    }
+    l.Z = new_matrix(num_nodes, batch_size);
+    l.B = new_random_matrix(num_nodes, 1);
+    l.W = new_random_matrix(num_nodes, prev_num_nodes + (prev_num_nodes == 0));
     return l;
 }
 

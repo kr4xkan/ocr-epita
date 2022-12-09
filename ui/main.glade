@@ -189,6 +189,7 @@
             <property name="name">next_lines</property>
             <property name="width-request">120</property>
             <property name="height-request">38</property>
+            <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="receives-default">True</property>
           </object>
@@ -257,6 +258,7 @@
             <property name="name">next_preprocessing</property>
             <property name="width-request">120</property>
             <property name="height-request">38</property>
+            <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="receives-default">True</property>
           </object>
@@ -327,14 +329,30 @@
           <object class="GtkButton" id="next_solver">
             <property name="label" translatable="yes">RETURN HOME</property>
             <property name="name">next_lines</property>
-            <property name="width-request">120</property>
+            <property name="width-request">133</property>
             <property name="height-request">38</property>
+            <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="receives-default">True</property>
           </object>
           <packing>
-            <property name="x">325</property>
-            <property name="y">538</property>
+            <property name="x">411</property>
+            <property name="y">540</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="save_res">
+            <property name="label" translatable="yes">SAVE</property>
+            <property name="name">save_res</property>
+            <property name="width-request">133</property>
+            <property name="height-request">38</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">254</property>
+            <property name="y">540</property>
           </packing>
         </child>
       </object>

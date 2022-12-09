@@ -111,14 +111,40 @@ SDL_Surface *loadImage(const char *path) {
 }
 gchar* select_file(GtkWindow *window, GdkEvent *event){
 	surf_rot = loadImage(gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(file_chooser)));
+	tmp = surf_rot;
 	filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(file_chooser));
 	return filename;
 }
 	
+/*
+void fill_grid(int number, GtkImage *im){
+	switch (number)
+	{
+		case 1:
+			im = 
+			break;
+		case 2:
+			im= 
+			break;
+		case 3:
+			im =
+			break;
+		case 4:
+			im =
+			break;
+		case 5:
+		case 6:
+		case 7:
+		case 8:
+			im=
+			break;
+		case 9:
+			im =7
+			break;
 
+}
 
-
-
+*/
 
 
 
@@ -141,7 +167,6 @@ void on_open_button(GtkWidget *widget, GdkEvent *event){
 
 void on_rotate(GtkWidget *widget, GdkEvent *event){
 
-	tmp = surf_rot;
 	const gchar* angle_text;
 	angle_text = gtk_entry_get_text(angle_entry);
 
@@ -234,7 +259,7 @@ int main(){
 	image = GTK_IMAGE(gtk_builder_get_object(builder,"image1"));
 	next_button_rot = GTK_BUTTON(gtk_builder_get_object(builder,"next_button_rot"));
 	angle_entry = GTK_ENTRY(gtk_builder_get_object(builder, "angle_entry"));
-	
+
 	//binarisation components
 	binarisation = GTK_WINDOW(gtk_builder_get_object(builder, "binarisation"));
 	fixed_container_bin = GTK_FIXED(gtk_builder_get_object(builder, "fixed_container_bin"));

@@ -89,9 +89,7 @@ void dumb_bin(SDL_Surface *surface) {
     }
 }
 
-void binarization(char *path) {
-    SDL_Surface *surface = load_image(path);
-
+void binarization(SDL_Surface *surface) {
     surface_to_grayscale(surface);
 
     IMG_SavePNG(surface, "grayscale.png");
@@ -100,7 +98,6 @@ void binarization(char *path) {
 
     IMG_SavePNG(surface, "binary.png");
 
-    SDL_FreeSurface(surface);
 }
 
 /*

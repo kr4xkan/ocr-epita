@@ -118,8 +118,8 @@ void dumb_bin(SDL_Surface *surface, int cutter) {
 
 
 
-void binarization(char *path, char *mode) {
-    SDL_Surface *surface = load_image(path);
+void binarization(SDL_Surface *surface, char *mode) {
+    //SDL_Surface *surface = load_image(path);
 
     surface_to_grayscale(surface);
 

@@ -349,6 +349,17 @@ Line* FilterLines(unsigned int *accumulator, Line* lines, size_t *vertLen, size_
     Line *vertLines = calloc(len, sizeof(Line));
     Line *horiLines = calloc(len, sizeof(Line));
 
+
+    for (size_t i = 1; i < len; i++){
+        size_t j = i;
+        while (j > 0 && lines[j-1].rho >  lines[j].rho){
+            Line tmp = lines[j-1];
+            lines[j-1] = lines[j];
+            lines[j] = tmp;
+            j--;
+        }
+    }
+
     //Filter in two separate array vertical and horizontal lines
     //Remove the others
     unsigned int rho1 = -1, rho2 = -1;
@@ -392,7 +403,11 @@ Line* FilterLines(unsigned int *accumulator, Line* lines, size_t *vertLen, size_
         range--;
     }
     
-    Line *newLines = malloc(((*vertLen)*(*horiLen)+1)*sizeof(Line));
+    size_t mallocLen = *(vertLen)*(*horiLen)+1;
+    if (mallocLen == 2)
+        mallocLen++;
+
+    Line *newLines = malloc(mallocLen*sizeof(Line));
     size_t i = 0, j = 0;
     while (i < vertCapacity){
         if (vertLines[i].value != 0){

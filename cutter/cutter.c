@@ -206,7 +206,8 @@ Line* DetectLines(unsigned int *accumulator){
         }
 
     }
-    lines[len].accuPos = accumulatorSize+1;;
+    lines[len].accuPos = accumulatorSize+1;
+    printf("num lines: %zu\n", len);
     return lines;
 }
 
@@ -313,6 +314,7 @@ Line* FilterLines(unsigned int *accumulator, Line* lines, size_t *vertLen, size_
         range--;
     }
     
+    printf("len(newLines): %zu\n", ((*vertLen)*(*horiLen)+1));
     Line *newLines = malloc(((*vertLen)*(*horiLen)+1)*sizeof(Line));
     size_t i = 0, j = 0;
     while (i < vertCapacity){
@@ -342,6 +344,7 @@ Line* FilterLines(unsigned int *accumulator, Line* lines, size_t *vertLen, size_
         }
         i++;
     }
+    printf("j: %zu\n", j);
     newLines[j].value = 0;
 
 

@@ -5,17 +5,17 @@ CFLAGS = -Wall -Wextra -std=c99 \
 LDFLAGS =
 LDLIBS = -lm $(shell pkg-config --libs sdl2 SDL2_image)
 
-SRC = neural-net.c matrix.c ../utils.c
+SRC = main.c neural-net.c matrix.c ../utils.c
 OBJ = ${SRC:.c=.o}
 DEP = ${SRC:.c=.d}
 
-neural-net: ${OBJ}
+main: ${OBJ}
 
 .PHONY: clean
 
 clean:
 	${RM} ${OBJ}
 	${RM} ${DEP}
-	${RM} neural-net
+	${RM} main
 
 -include ${DEP}

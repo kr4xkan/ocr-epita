@@ -20,8 +20,6 @@ void Run(AppState *state)
         unsigned int *space = CreateSpace(surface, lines);
         Intersection *intersections = FindIntersections(surface, space, vertLen, horiLen);
 
-        
-
         game->p1.x = intersections[0].x*ratio;    
         game->p1.y = intersections[0].y*ratio;    
 

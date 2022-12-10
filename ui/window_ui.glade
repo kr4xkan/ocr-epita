@@ -6,55 +6,56 @@
     <property name="width-request">800</property>
     <property name="height-request">600</property>
     <property name="can-focus">False</property>
+    <property name="resizable">False</property>
     <child>
       <object class="GtkFixed" id="fixed_container_bin">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <child>
           <object class="GtkImage" id="bin_image">
-            <property name="width-request">800</property>
-            <property name="height-request">800</property>
+            <property name="width-request">580</property>
+            <property name="height-request">400</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="stock">gtk-missing-image</property>
           </object>
           <packing>
-            <property name="y">50</property>
+            <property name="y">200</property>
           </packing>
         </child>
         <child>
           <object class="GtkCheckButton" id="binarize_check">
             <property name="label" translatable="yes">Binarized</property>
             <property name="name">grayscale_check</property>
-            <property name="width-request">166</property>
-            <property name="height-request">80</property>
+            <property name="width-request">116</property>
+            <property name="height-request">42</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="receives-default">False</property>
             <property name="draw-indicator">True</property>
           </object>
           <packing>
-            <property name="x">800</property>
-            <property name="y">229</property>
+            <property name="x">342</property>
+            <property name="y">151</property>
           </packing>
         </child>
         <child>
           <object class="GtkButton" id="next_button_bin">
-            <property name="label" translatable="yes">Next Step to cut lines</property>
-            <property name="width-request">100</property>
+            <property name="label" translatable="yes">NEXT</property>
+            <property name="width-request">174</property>
             <property name="height-request">64</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="receives-default">True</property>
           </object>
           <packing>
-            <property name="x">800</property>
-            <property name="y">526</property>
+            <property name="x">605</property>
+            <property name="y">342</property>
           </packing>
         </child>
         <child>
           <object class="GtkLabel" id="title bin">
-            <property name="width-request">100</property>
+            <property name="width-request">156</property>
             <property name="height-request">80</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
@@ -64,22 +65,23 @@
             </attributes>
           </object>
           <packing>
-            <property name="x">576</property>
-            <property name="y">17</property>
+            <property name="x">322</property>
+            <property name="y">26</property>
           </packing>
         </child>
         <child>
           <object class="GtkLabel">
-            <property name="width-request">100</property>
-            <property name="height-request">80</property>
+            <property name="width-request">326</property>
+            <property name="height-request">61</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="label" translatable="yes">Check the button if you want to see the difference
-                 between binarized and normal image</property>
+between binarized and normal image</property>
+            <property name="justify">center</property>
           </object>
           <packing>
-            <property name="x">776</property>
-            <property name="y">158</property>
+            <property name="x">237</property>
+            <property name="y">98</property>
           </packing>
         </child>
       </object>
@@ -105,8 +107,7 @@
             <property name="stock">gtk-missing-image</property>
           </object>
           <packing>
-            <property name="x">108</property>
-            <property name="y">121</property>
+            <property name="y">139</property>
           </packing>
         </child>
         <child>
@@ -117,14 +118,13 @@
             <property name="can-focus">False</property>
           </object>
           <packing>
-            <property name="x">108</property>
-            <property name="y">121</property>
+            <property name="y">139</property>
           </packing>
         </child>
         <child>
           <object class="GtkLabel" id="titlelines">
             <property name="name">title</property>
-            <property name="width-request">100</property>
+            <property name="width-request">205</property>
             <property name="height-request">80</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
@@ -135,87 +135,121 @@
             </attributes>
           </object>
           <packing>
-            <property name="x">275</property>
-            <property name="y">50</property>
+            <property name="x">322</property>
+            <property name="y">17</property>
           </packing>
         </child>
         <child>
           <object class="GtkButton" id="next_lines">
-            <property name="label" translatable="yes">Next Step</property>
+            <property name="label" translatable="yes">NEXT</property>
             <property name="width-request">100</property>
             <property name="height-request">80</property>
             <property name="can-focus">True</property>
             <property name="receives-default">True</property>
           </object>
           <packing>
-            <property name="x">744</property>
-            <property name="y">544</property>
+            <property name="x">648</property>
+            <property name="y">342</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="width-request">243</property>
+            <property name="height-request">80</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Make sure that the red lines 
+Readjust the detected lines if needed</property>
+            <property name="justify">center</property>
+          </object>
+          <packing>
+            <property name="x">302</property>
+            <property name="y">70</property>
           </packing>
         </child>
       </object>
     </child>
   </object>
   <object class="GtkWindow" id="manual_rotation">
-    <property name="width-request">1400</property>
-    <property name="height-request">1000</property>
+    <property name="width-request">800</property>
+    <property name="height-request">600</property>
     <property name="can-focus">False</property>
+    <property name="resizable">False</property>
     <child>
       <object class="GtkFixed" id="fixed_container_rot">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <child>
           <object class="GtkImage" id="image1">
-            <property name="width-request">100</property>
-            <property name="height-request">80</property>
+            <property name="width-request">580</property>
+            <property name="height-request">400</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="stock">gtk-missing-image</property>
           </object>
           <packing>
-            <property name="x">200</property>
             <property name="y">200</property>
           </packing>
         </child>
         <child>
           <object class="GtkButton" id="next_button_rot">
-            <property name="label" translatable="yes">Next Step</property>
-            <property name="width-request">100</property>
+            <property name="label" translatable="yes">NEXT</property>
+            <property name="width-request">98</property>
             <property name="height-request">80</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="receives-default">True</property>
           </object>
           <packing>
-            <property name="x">1050</property>
-            <property name="y">600</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkEntry" id="angle_entry">
-            <property name="width-request">239</property>
-            <property name="height-request">80</property>
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
-            <property name="tooltip-text" translatable="yes">Enter a degree to rotate</property>
-          </object>
-          <packing>
-            <property name="x">1000</property>
-            <property name="y">200</property>
+            <property name="x">640</property>
+            <property name="y">349</property>
           </packing>
         </child>
         <child>
           <object class="GtkLabel">
-            <property name="width-request">100</property>
+            <property name="width-request">186</property>
             <property name="height-request">80</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Enter a value if you want 
-	to rotate the image
-		  yourself</property>
+            <property name="label" translatable="yes">Rotate your image if needed</property>
           </object>
           <packing>
-            <property name="x">1017</property>
-            <property name="y">88</property>
+            <property name="x">307</property>
+            <property name="y">69</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="titlelines1">
+            <property name="name">title</property>
+            <property name="width-request">205</property>
+            <property name="height-request">80</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="has-tooltip">True</property>
+            <property name="label" translatable="yes">Adjustements</property>
+            <attributes>
+              <attribute name="font-desc" value="Sans 20"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="x">297</property>
+            <property name="y">14</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkScale" id="angle_entry">
+            <property name="width-request">166</property>
+            <property name="height-request">80</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="restrict-to-fill-level">False</property>
+            <property name="fill-level">0</property>
+            <property name="round-digits">1</property>
+            <property name="draw-value">False</property>
+          </object>
+          <packing>
+            <property name="x">605</property>
+            <property name="y">272</property>
           </packing>
         </child>
       </object>
@@ -223,7 +257,10 @@
   </object>
   <object class="GtkWindow" id="opening_window">
     <property name="name">opening_window</property>
+    <property name="width-request">800</property>
+    <property name="height-request">600</property>
     <property name="can-focus">False</property>
+    <property name="resizable">False</property>
     <property name="default-width">750</property>
     <property name="default-height">500</property>
     <property name="icon-name">Sudoku Solver</property>
@@ -261,26 +298,26 @@
             <property name="receives-default">True</property>
           </object>
           <packing>
-            <property name="x">300</property>
-            <property name="y">293</property>
+            <property name="x">341</property>
+            <property name="y">453</property>
           </packing>
         </child>
         <child>
           <object class="GtkLabel" id="title">
             <property name="name">title</property>
-            <property name="width-request">100</property>
+            <property name="width-request">376</property>
             <property name="height-request">80</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="has-tooltip">True</property>
-            <property name="label" translatable="yes">OCR Sudoku Solver</property>
+            <property name="label" translatable="yes">PC2's OCR SUDOKU SOLVER</property>
             <attributes>
               <attribute name="font-desc" value="Sans 20"/>
             </attributes>
           </object>
           <packing>
-            <property name="x">200</property>
-            <property name="y">54</property>
+            <property name="x">212</property>
+            <property name="y">80</property>
           </packing>
         </child>
         <child>
@@ -292,21 +329,21 @@
             <property name="title" translatable="yes">Select a file</property>
           </object>
           <packing>
-            <property name="x">134</property>
-            <property name="y">169</property>
+            <property name="x">147</property>
+            <property name="y">347</property>
           </packing>
         </child>
         <child>
           <object class="GtkLabel">
-            <property name="width-request">100</property>
+            <property name="width-request">127</property>
             <property name="height-request">80</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="label" translatable="yes">Select a file to start</property>
           </object>
           <packing>
-            <property name="x">307</property>
-            <property name="y">111</property>
+            <property name="x">336</property>
+            <property name="y">270</property>
           </packing>
         </child>
       </object>
@@ -316,6 +353,7 @@
     <property name="width-request">800</property>
     <property name="height-request">600</property>
     <property name="can-focus">False</property>
+    <property name="resizable">False</property>
     <child>
       <object class="GtkFixed" id="fixed_container3">
         <property name="visible">True</property>
@@ -330,22 +368,22 @@
             <property name="receives-default">True</property>
           </object>
           <packing>
-            <property name="x">591</property>
-            <property name="y">113</property>
+            <property name="x">588</property>
+            <property name="y">135</property>
           </packing>
         </child>
         <child>
           <object class="GtkLabel">
-            <property name="width-request">100</property>
+            <property name="width-request">167</property>
             <property name="height-request">80</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="label" translatable="yes">Tap if you want to save the imageof the 
-			solved sudoku</property>
+            <property name="label" translatable="yes">Save the solved board to:
+./solved_sudoku.png</property>
           </object>
           <packing>
-            <property name="x">480</property>
-            <property name="y">38</property>
+            <property name="x">588</property>
+            <property name="y">56</property>
           </packing>
         </child>
         <child>
@@ -359,6 +397,38 @@
           <packing>
             <property name="x">64</property>
             <property name="y">104</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="return_button">
+            <property name="label" translatable="yes">Return Home</property>
+            <property name="width-request">100</property>
+            <property name="height-request">80</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">590</property>
+            <property name="y">231</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="title1">
+            <property name="name">title</property>
+            <property name="width-request">376</property>
+            <property name="height-request">80</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="has-tooltip">True</property>
+            <property name="label" translatable="yes">SOLVED</property>
+            <attributes>
+              <attribute name="font-desc" value="Sans 20"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="x">121</property>
+            <property name="y">12</property>
           </packing>
         </child>
       </object>

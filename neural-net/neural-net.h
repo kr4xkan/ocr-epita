@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stddef.h>
+#include <SDL2/SDL.h>
 #include "matrix.h"
 
 #define szt size_t
@@ -58,6 +59,10 @@ Layer new_layer(enum ActivationFunction activation, size_t num_nodes, size_t pre
 void free_network(NeuralNetwork* nn);
 void free_layer(Layer* layer);
 void print_stat(NeuralNetwork* nn, double error);
+
+void cmd_train(int argc, char **argv);
+void cmd_guess(int argc, char **argv);
+void cmd_test(int argc, char **argv);
 
 int guess_xor(char *input);
 

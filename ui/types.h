@@ -19,5 +19,7 @@ typedef struct {
     GtkImage *img_lines;
     GtkButton *next_lines;
 
+    int sudoku[9][9];
+
     DrawArea draw;
 } AppState;

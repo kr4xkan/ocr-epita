@@ -3,13 +3,6 @@
 #include <err.h>
 
 
-SDL_Surface *load_image(const char *path) {
-    SDL_Surface *surf = IMG_Load(path);
-    SDL_Surface *res =
-        SDL_ConvertSurfaceFormat(surf, SDL_PIXELFORMAT_RGB888, 0);
-    return res;
-}
-
 Uint32 pixel_to_grayscale(Uint32 pixel_color, SDL_PixelFormat *format) {
     Uint8 r, g, b;
     SDL_GetRGB(pixel_color, format, &r, &g, &b);

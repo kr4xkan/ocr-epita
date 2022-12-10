@@ -13,6 +13,7 @@
 #include "../solver/solver.h"
 #include "../utils.h"
 #include "drawarea.h"
+#include "types.h"
 #include "ui.h"
 
 
@@ -92,12 +93,36 @@ double set_gtk_image_from_surface (GtkImage* img_container, SDL_Surface *surface
             dst_format, pixels, rowstride);
     SDL_UnlockSurface(surface);
 
-    int nW = 580;
-    int nH;
-    if (preserve_ratio)
+    float nW;
+    float nH;
+    if (preserve_ratio == 1) {
+        nW = 580;
         nH = surface->h * nW / surface->w;
-    else
-        nH = 400;
+    } else if (preserve_ratio == 2) {
+        float ws = 330;
+        float hs = 260;
+        float rs = ws/hs;
+        float ri = surface->w/surface->h;
+        if (rs > ri) {
+            nW = surface->w * (hs/surface->h);
+            nH = hs;
+        } else {
+            nW = ws;
+            nH = surface->h * (ws/surface->w);
+        }
+    } else {
+        float ws = 580;
+        float hs = 400;
+        float rs = ws/hs;
+        float ri = surface->w/surface->h;
+        if (rs > ri) {
+            nW = surface->w * (hs/surface->h);
+            nH = hs;
+        } else {
+            nW = ws;
+            nH = surface->h * (ws/surface->w);
+        }
+    }
 
     GdkPixbuf* pxbscaled = gdk_pixbuf_scale_simple(pixbuf, nW, nH, GDK_INTERP_BILINEAR);
 
@@ -130,6 +155,8 @@ gchar* select_file(GtkWindow *window){
 
 
 void load_number(int number_grid){
+    if (numb_solver)
+        SDL_FreeSurface(numb_solver);
    switch (number_grid)
    {
 	case 1:
@@ -169,24 +196,26 @@ void grid_to_image(int grid[9][9]){
 	void_grid = LoadImage("../void_grid.jpg");
 
 	for (int i = 0; i<9 ; i++){
-		for (int j = 0; j<9 ; j++){
-			load_number(grid[i][j]);
+		for (int j = 0; j<9 ; j++) {
+            if (grid[i][j]) {
+                load_number(grid[i][j]);
+                SDL_BlitScaled(numb_solver, NULL, void_grid, &rect);
+            }
 
-			SDL_BlitScaled(numb_solver, NULL, void_grid, &rect);
-
-			if(rect.y + 67 >= 600){
-				rect.y = 15;
-			}
-			else{
-				rect.y = rect.y + 67;
-			}
+            if(rect.y + 67 >= 600){
+                rect.y = 15;
+            }
+            else{
+                rect.y = rect.y + 67;
+            }
 		}
-	rect.x = i * 62 + 83 + (i>1) * 10 + (i>3) * 10;
+	    rect.x = i * 62 + 83 + (i>1) * 10 + (i>3) * 10;
 	}				
 }
 
 //array pour tester la fonction grid_to_image
-int grid_ex[9][9] = {{1,2,3,4,5,6,7,8,9},
+int grid_ex[9][9] = {
+        {1,2,3,4,5,6,7,8,9},
 		{1,2,3,4,5,6,7,8,9},
 		{1,2,3,4,5,6,7,8,9},
 
@@ -198,52 +227,28 @@ int grid_ex[9][9] = {{1,2,3,4,5,6,7,8,9},
 		{1,2,3,4,5,6,7,8,9},
 		{1,2,3,4,5,6,7,8,9}};
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 void on_open_button(GtkWidget *widget){
-    set_gtk_image_from_surface(image, surf_rot, 1);
+    set_gtk_image_from_surface(image, surf_rot, 0);
 
     gtk_widget_hide(GTK_WIDGET(opening_window));
     gtk_widget_show(GTK_WIDGET(manual_rotation));
 }
 
-
-
-
-void on_rotate(GtkWidget *widget){
-
-    const gchar* angle_text;
-    angle_text = gtk_entry_get_text(angle_entry);
-
-    if (angle_text == NULL){
-        tmp = surf_rot;
-    }
-    else{
-
-        float angle =  atof(angle_text);
-        tmp = RotateSurface(surf_rot, angle);
-    }
-    set_gtk_image_from_surface(image, tmp, 1);
-
+void on_rotate(GtkRange *widget){
+    double angle = gtk_range_get_value(widget);
+    tmp = RotateSurface(surf_rot, angle);
+    set_gtk_image_from_surface(image, tmp, 0);
 }
-void on_next_button_rot(GtkWidget *widget){
 
+void on_next_button_rot(GtkWidget *widget){
     //binarisation
     surf_rot = tmp;
-    binarization(surf_rot, 20);
+    IMG_SavePNG(surf_rot, "rotated.png");
+    binarization(surf_rot, 10);
+    SDL_FreeSurface(surf_rot);
+    surf_rot = loadImage("rotated.png");
     surf_bin = loadImage("binary.png");
-    set_gtk_image_from_surface(bin_image, surf_bin, 1);
+    set_gtk_image_from_surface(bin_image, surf_bin, 0);
 
     gtk_widget_hide(GTK_WIDGET(manual_rotation));
     gtk_toggle_button_set_active(binarize_check, TRUE);
@@ -253,10 +258,10 @@ void on_next_button_rot(GtkWidget *widget){
 void on_binarize_check(GtkWidget *widget){
     gboolean checked = gtk_toggle_button_get_active(binarize_check);
     if(checked){
-        set_gtk_image_from_surface(bin_image, surf_bin,1);
+        set_gtk_image_from_surface(bin_image, surf_bin, 0);
     }
     else{
-        set_gtk_image_from_surface(bin_image, surf_rot,1);
+        set_gtk_image_from_surface(bin_image, surf_rot, 0);
     }
 }
 
@@ -276,16 +281,45 @@ void on_next_button_bin(GtkWidget *widget, gpointer user_data){
 }
 
 void on_next_button_cutter(GtkWidget *widget, gpointer user_data){
+	AppState *app_state = user_data;
 //neural-network 
 //neural-network 
 //neural-network 
 //neural-network 
+    Intersection* corners = calloc(4, sizeof(Intersection));
+    corners[0].x = app_state->draw.p1.x/app_state->draw.ratio;
+    corners[0].y = app_state->draw.p1.y/app_state->draw.ratio;
+    corners[1].x = app_state->draw.p2.x/app_state->draw.ratio;
+    corners[1].y = app_state->draw.p2.y/app_state->draw.ratio;
+    corners[2].x = app_state->draw.p3.x/app_state->draw.ratio;
+    corners[2].y = app_state->draw.p3.y/app_state->draw.ratio;
+    corners[3].x = app_state->draw.p4.x/app_state->draw.ratio;
+    corners[3].y = app_state->draw.p4.y/app_state->draw.ratio;
+   
+    app_state->cells = ManualCutter(app_state->current_surface, corners);
+   
+    for (size_t i = 0; i < 81; i++) {
+        size_t x = i / 9;
+        size_t y = i % 9;
+        app_state->sudoku[x][y] = recognize_digit(app_state->cells[i]);
+        free(app_state->cells[i]);
+    }
+    free(app_state->cells); 
+
+    for (size_t y = 0; y < 9; y++) {
+        for (size_t x = 0; x < 9; x++) {
+            printf("%d ", app_state->sudoku[x][y]);
+        }
+        printf("\n");
+    }
+  
+    //int res = solver(app_state->sudoku, 0, 0);
+
 //add the solver function to the grid from the nn
 //
-	AppState *app_state = user_data;
 //not tried cause errors in cutter part
-    grid_to_image(grid_ex);
-    set_gtk_image_from_surface(image3, void_grid, 1);
+    grid_to_image(app_state->sudoku);
+    set_gtk_image_from_surface(image3, void_grid, 0);
 
 	gtk_widget_hide(GTK_WIDGET(app_state->line_check_window));
 	gtk_widget_show(GTK_WIDGET(solved));
@@ -293,24 +327,23 @@ void on_next_button_cutter(GtkWidget *widget, gpointer user_data){
 
 void on_save_button(GtkWidget *widget){
 	IMG_SavePNG(void_grid, "solved_sudoku.png");
-	gtk_widget_hide(GTK_WIDGET(solved));
+    GtkDialogFlags flags = GTK_DIALOG_DESTROY_WITH_PARENT;
+    GtkWidget* dialog = gtk_message_dialog_new (solved,
+                                     flags,
+                                     GTK_MESSAGE_INFO,
+                                     GTK_BUTTONS_CLOSE,
+                                     "Solved Sudoku saved at:\n./solved_sudoku.png");
+    g_signal_connect_swapped (dialog, "response",
+                              G_CALLBACK (gtk_widget_destroy),
+                              dialog);
+    gtk_dialog_run(GTK_DIALOG(dialog));
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void on_return_home(GtkWidget *widget) {
+    SDL_FreeSurface(void_grid);
+	gtk_widget_hide(GTK_WIDGET(solved));
+	gtk_widget_show(GTK_WIDGET(opening_window));
+}
 
 int main(){
 
@@ -330,9 +363,10 @@ int main(){
     file_chooser = GTK_FILE_CHOOSER_BUTTON(gtk_builder_get_object(builder, "file_chooser"));
     image = GTK_IMAGE(gtk_builder_get_object(builder,"image1"));
     next_button_rot = GTK_BUTTON(gtk_builder_get_object(builder,"next_button_rot"));
-    angle_entry = GTK_ENTRY(gtk_builder_get_object(builder, "angle_entry"));
-
-
+    
+    GtkScale* angle_slider = GTK_SCALE(
+        gtk_builder_get_object(builder, "angle_entry"));
+    gtk_range_set_range(GTK_RANGE(angle_slider), 0, 180);
 
     //binarisation components
     binarisation = GTK_WINDOW(gtk_builder_get_object(builder, "binarisation"));
@@ -352,7 +386,6 @@ int main(){
     GtkButton *next_lines =  GTK_BUTTON(gtk_builder_get_object(builder, "next_lines"));
 
     AppState app_state = {
-
         .line_check_window = line_check_window,
         .img_lines = img_lines,
         .next_lines = next_lines,
@@ -372,6 +405,7 @@ int main(){
     fixed_container3 = GTK_FIXED(gtk_builder_get_object(builder, "fixed_container3"));
     image3 = GTK_IMAGE(gtk_builder_get_object(builder, "image3"));
     save_button = GTK_BUTTON(gtk_builder_get_object(builder, "save_button"));
+    GtkButton *return_button =  GTK_BUTTON(gtk_builder_get_object(builder, "return_button"));
     rect.x = 15;
     rect.y = 15;
     rect.h = 40;
@@ -394,7 +428,8 @@ int main(){
     //
     //ROT
     //
-    g_signal_connect(angle_entry, "changed", G_CALLBACK(on_rotate), NULL);
+    //g_signal_connect(angle_entry, "changed", G_CALLBACK(on_rotate), NULL);
+    g_signal_connect(GTK_RANGE(angle_slider), "value-changed", G_CALLBACK(on_rotate), &app_state);
     //
     //BIN
     //
@@ -418,6 +453,7 @@ int main(){
     //
     //
 
+    g_signal_connect(return_button, "clicked", G_CALLBACK(on_return_home), NULL);
     g_signal_connect(save_button, "clicked", G_CALLBACK(on_save_button), NULL);
 
     //show windows

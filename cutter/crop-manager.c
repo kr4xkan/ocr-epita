@@ -98,13 +98,15 @@ SDL_Surface **CropSquares(SDL_Surface *surface, Intersection *coords, size_t ver
                     squareHeight);
 
             res[y*(vertLen-1)+x] = square;
-          char name[] = {x+'1', '-', y+'1', '.', 'p', 'n', 'g', '\0'};
-          char *newStr = malloc((strlen(name) + 15) * sizeof(char));
-          strcpy(newStr, "squares/");
-          strcat(newStr, name);
-          IMG_SavePNG(square, newStr);
-          //SDL_FreeSurface(square);
-          free(newStr);
+            /*
+            char name[] = {x+'1', '-', y+'1', '.', 'p', 'n', 'g', '\0'};
+            char *newStr = malloc((strlen(name) + 15) * sizeof(char));
+            strcpy(newStr, "squares/");
+            strcat(newStr, name);
+            IMG_SavePNG(square, newStr);
+            SDL_FreeSurface(square);
+            free(newStr);
+            */
         }
     }
     return res;
@@ -116,8 +118,11 @@ SDL_Surface **CropSquares(SDL_Surface *surface, Intersection *coords, size_t ver
 SDL_Surface **ManualCrop(SDL_Surface *surface, Intersection *corners){
     Intersection *coords = malloc(100*sizeof(Intersection));
 
-    Intersection *leftSide = FindPoints(corners[0], corners[2]);
-    Intersection *rightSide = FindPoints(corners[1], corners[3]);
+    // Change to 0 2 | 1 3 if manual crop is not working
+    // Intersection *leftSide = FindPoints(corners[0], corners[2]);
+    // Intersection *rightSide = FindPoints(corners[1], corners[3]);
+    Intersection *leftSide = FindPoints(corners[0], corners[1]);
+    Intersection *rightSide = FindPoints(corners[2], corners[3]);
 
     for (size_t i = 0; i < 10; i++){
         Intersection *line = FindPoints(leftSide[i], rightSide[i]);

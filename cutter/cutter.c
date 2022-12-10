@@ -32,8 +32,6 @@ SDL_Surface **ManualCutter(SDL_Surface *ogSurf, Intersection *corners){
 
 
 
-
-
 SDL_Surface **AutoCutter(SDL_Surface *ogSurf, SDL_Surface *binSurf) {
     clock_t t = clock();
     
@@ -442,9 +440,7 @@ SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator, int 
 
     SDL_Surface *rotated = NULL;
     int angle = sum / count;
-    printf("%d\n", angle);
     *angleDegree = angle;
-    printf("1 %d\n", angle);
     if (abs(angle) > 1) {
         if (angle >= 45) {
             printf("Rotate %i° Clockwise\n", 90 - angle);

@@ -244,8 +244,7 @@ void on_next_button_rot(GtkWidget *widget){
     //binarisation
     surf_rot = tmp;
     IMG_SavePNG(surf_rot, "rotated.png");
-    binarization(surf_rot, 10);
-    SDL_FreeSurface(surf_rot);
+    binarization(surf_rot, 5);
     surf_rot = loadImage("rotated.png");
     surf_bin = loadImage("binary.png");
     set_gtk_image_from_surface(bin_image, surf_bin, 0);
@@ -280,6 +279,15 @@ void on_next_button_bin(GtkWidget *widget, gpointer user_data){
     Run(app_state);
 }
 
+void set_pixel(SDL_Surface *surface, int x, int y, int r, int g, int b)
+{
+  Uint32 * const target_pixel = (Uint32 *) ((Uint8 *) surface->pixels
+                                             + y * surface->pitch
+                                             + x * surface->format->BytesPerPixel);
+  *target_pixel = SDL_MapRGB(surface->format, r, g, b);
+}
+
+
 void on_next_button_cutter(GtkWidget *widget, gpointer user_data){
 	AppState *app_state = user_data;
 //neural-network 
@@ -296,19 +304,40 @@ void on_next_button_cutter(GtkWidget *widget, gpointer user_data){
     corners[3].x = app_state->draw.p4.x/app_state->draw.ratio;
     corners[3].y = app_state->draw.p4.y/app_state->draw.ratio;
    
-    app_state->cells = ManualCutter(app_state->current_surface, corners);
+    app_state->cells = ManualCutter(surf_bin, corners);
+
+//    for (size_t i = 0; i < 81; i++) {
+//        binarization(app_state->cells[i], 1);
+//    }
+
+    for (size_t i = 0; i < 81; i++) {
+        SDL_LockSurface(app_state->cells[i]);
+        for (size_t x = 0; x < 28; x++) {
+            for (size_t y = 0; y < 4; y++) {
+                set_pixel(app_state->cells[i], x, y, 0, 0, 0);
+                set_pixel(app_state->cells[i], x, 27-y, 0, 0, 0);
+                set_pixel(app_state->cells[i], y, x, 0, 0, 0);
+                set_pixel(app_state->cells[i], 27-y, x, 0, 0, 0);
+            }
+        }
+        SDL_UnlockSurface(app_state->cells[i]);
+    }
    
     for (size_t i = 0; i < 81; i++) {
         size_t x = i / 9;
         size_t y = i % 9;
         app_state->sudoku[x][y] = recognize_digit(app_state->cells[i]);
-        free(app_state->cells[i]);
     }
-    free(app_state->cells); 
 
     for (size_t y = 0; y < 9; y++) {
         for (size_t x = 0; x < 9; x++) {
             printf("%d ", app_state->sudoku[x][y]);
+            char name[] = {y+'1', '-', x+'1', '.', 'p', 'n', 'g', '\0'};
+            char *newStr = malloc((strlen(name) + 15) * sizeof(char));
+            strcpy(newStr, "squares/");
+            strcat(newStr, name);
+            IMG_SavePNG(app_state->cells[y * 9 + x], newStr);
+            free(newStr);
         }
         printf("\n");
     }

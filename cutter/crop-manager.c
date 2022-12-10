@@ -99,12 +99,12 @@ SDL_Surface **CropSquares(SDL_Surface *surface, Intersection *coords, size_t ver
                     squareHeight);
 
             res[y*(vertLen-1)+x] = square;
-            char name[] = {x+'1', '-', y+'1', '.', 'p', 'n', 'g', '\0'};
-            char *newStr = malloc((strlen(name) + 15) * sizeof(char));
-            strcpy(newStr, "squares/");
-            strcat(newStr, name);
-            IMG_SavePNG(square, newStr);
-            free(newStr);
+ //           char name[] = {x+'1', '-', y+'1', '.', 'p', 'n', 'g', '\0'};
+ //           char *newStr = malloc((strlen(name) + 15) * sizeof(char));
+ //           strcpy(newStr, "squares/");
+ //           strcat(newStr, name);
+ //           IMG_SavePNG(square, newStr);
+ //           free(newStr);
         }
     }
     return res;

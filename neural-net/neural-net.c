@@ -310,8 +310,8 @@ void cmd_test(int argc, char **argv) {
     free_buffer(buf);
 
     szt len_dataset;
-    //LabeledImage* dataset = load_dataset(argv[0], &len_dataset);
-    LabeledImage* dataset = load_all_cutter_set(argv[0], &len_dataset);
+    LabeledImage* dataset = load_dataset(argv[0], &len_dataset);
+    //LabeledImage* dataset = load_all_cutter_set(argv[0], &len_dataset);
 
     szt correct = 0;
     for (size_t i = 0; i < len_dataset; i++) {
@@ -344,8 +344,8 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
     NeuralNetwork nn = *neural_net;
 
     szt len_dataset;
-    //LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
-    LabeledImage* dataset = load_all_cutter_set(dataset_path, &len_dataset);
+    LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
+    //LabeledImage* dataset = load_all_cutter_set(dataset_path, &len_dataset);
 
     Matrix expected = new_matrix(10, nn.batch_size);
     
@@ -406,6 +406,12 @@ LabeledImage* load_all_cutter_set(char* dataset_path, szt* len_d) {
     LabeledImage* dataset = load_cutter_set(strcat(strcpy(path, dataset_path), "1/"), &len_dataset);
     LabeledImage* dataset_m;
     dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "2/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "2b/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "2c/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "2d/"), &len_tmp);
     concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
     dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "4/"), &len_tmp);
     concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);

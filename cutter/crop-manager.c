@@ -87,6 +87,7 @@ int DontAdd(Intersection *coords, size_t x, size_t y, size_t nbIntersections) {
 
 SDL_Surface **CropSquares(SDL_Surface *surface, Intersection *coords, size_t vertLen, size_t horiLen){
     SDL_Surface **res = malloc(81*sizeof(SDL_Surface*));
+
     for (size_t y = 0; y < horiLen-1; y++){
         for (size_t x = 0; x < vertLen-1; x++){
             Intersection current = coords[y*vertLen + x];

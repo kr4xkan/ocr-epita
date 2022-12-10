@@ -5,8 +5,7 @@
 #include "ui/ui.h"
 #include "utils.h"
 
-
 int main() {
-
+    // MAIN APPLICATION HERE
     return 0;
 }

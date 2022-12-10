@@ -58,7 +58,7 @@ int check_safe(int grid[9][9], int row, int col, int num) {
     int start_sqr_col = col - col % 3;
 
     for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
+       for (int j = 0; j < 3; j++) {
             if (grid[i + start_sqr_row][j + start_sqr_col] == num) {
                 return 0;
             }

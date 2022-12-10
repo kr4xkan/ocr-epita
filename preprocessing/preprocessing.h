@@ -1,2 +1,3 @@
 #pragma once
-void binarization(char *path);
+
+void binarization(SDL_Surface *surface);

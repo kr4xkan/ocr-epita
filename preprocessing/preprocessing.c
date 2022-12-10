@@ -107,12 +107,12 @@ void dumb_bin(SDL_Surface *surface, int cutter) {
 
     for (int a = 1; a < (cutter+1) ; a++)
     {
-	for (int b = 1; b < (cutter+1); b++)
-	{
-	    int threshold = otsu(surface, h_list[b-1], w_list[a-1], h_list[b], w_list[a], w);
-	    binarize_square(surface, threshold, h_list[b - 1],
-                            w_list[a - 1], h_list[b], w_list[a], w);
-	}
+        for (int b = 1; b < (cutter+1); b++)
+        {
+            int threshold = otsu(surface, h_list[b-1], w_list[a-1], h_list[b], w_list[a], w);
+            binarize_square(surface, threshold, h_list[b - 1],
+                                w_list[a - 1], h_list[b], w_list[a], w);
+        }
     }
 }
 
@@ -131,13 +131,13 @@ void binarization(SDL_Surface *surface, char *mode) {
 
     IMG_SavePNG(surface, "binary.png");
 
-    SDL_FreeSurface(surface);
 }
 
+/*
 int main(int argc, char **argv) {
     if (argc != 3) {
         errx(1, "Usage: ./preprocessing image_path mode");
     }
 
     binarization(argv[1], argv[2]);
-}
+}*/

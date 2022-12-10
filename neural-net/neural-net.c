@@ -4,12 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #include <SDL.h>
 
 #include "../utils.h"
 #include "matrix.h"
 #include "neural-net.h"
+#define m_pi 3.1415926535
 
 void free_network(NeuralNetwork* nn) {
     for (szt i = 0; i < nn->layer_count; i++) {
@@ -89,8 +91,8 @@ NeuralNetwork new_network(double learning_rate) {
     nn.updates.iterations = 0;
     nn.layers = calloc(nn.layer_count, sizeof(Layer));
     nn.layers[0] = new_layer(ReLU, 784, 0, nn.batch_size);
-    nn.layers[1] = new_layer(ReLU, 30, 784, nn.batch_size);
-    nn.layers[2] = new_layer(SoftMax, 10, 30, nn.batch_size);
+    nn.layers[1] = new_layer(ReLU, 18, 784, nn.batch_size);
+    nn.layers[2] = new_layer(SoftMax, 10, 18, nn.batch_size);
     nn.updates.dZ2 = new_matrix(nn.layers[2].Z.n, nn.layers[2].Z.p);
     nn.updates.dW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
     nn.updates.mW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
@@ -102,7 +104,7 @@ NeuralNetwork new_network(double learning_rate) {
     nn.updates.dB1 = new_matrix(nn.layers[1].B.n, nn.layers[1].B.p);
     nn.updates.mB1 = new_matrix(nn.layers[1].B.n, nn.layers[1].B.p);
     nn.csv = fopen("stat.csv", "w");
-    fprintf(nn.csv, "error,lr\n");
+    fprintf(nn.csv, "error,validation,lr\n");
     return nn;
 }
 
@@ -156,9 +158,16 @@ NeuralNetwork deserialize_network(Buffer* buf) {
     return nn;
 }
 
-void print_stat(NeuralNetwork* nn, double error) {
-    fprintf(nn->csv, "%f,%f\n", error, nn->updates.current_learning_rate);
+void print_stat(NeuralNetwork* nn, double error, double validation) {
+    fprintf(nn->csv, "%f,%f,%f\n", error, validation, nn->updates.current_learning_rate);
     fflush(nn->csv);
+}
+
+double gauss_noise() {
+  double x = (double)rand() / RAND_MAX,
+         y = (double)rand() / RAND_MAX,
+         z = sqrt(-2 * log(x)) * cos(2 * m_pi * y);
+  return z;
 }
 
 void forward_pass(NeuralNetwork* nn) {
@@ -347,21 +356,26 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
     LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
     //LabeledImage* dataset = load_all_cutter_set(dataset_path, &len_dataset);
 
+    szt len_training = len_dataset * 0.9;
+    szt len_testing = len_dataset - len_training;
+
+    printf("Training: %zu   Validation: %zu\n", len_training, len_testing);
+
     Matrix expected = new_matrix(10, nn.batch_size);
     
     size_t stat_iter = 0;
     clock_t t = clock();
     for (szt i = 0; i < iterations; i++) {
         // Randomize array
-        for (szt i = 0; i < len_dataset - 1; i++) {
-            szt j = i + rand() / (RAND_MAX / (len_dataset - i) + 1);
+        for (szt i = 0; i < len_training - 1; i++) {
+            szt j = i + rand() / (RAND_MAX / (len_training - i) + 1);
             LabeledImage t = dataset[j];
             dataset[j] = dataset[i];
             dataset[i] = t;
         }
 
         double error = 0;
-        for (szt j = 0; j < len_dataset; j+=nn.batch_size) {
+        for (szt j = 0; j < len_training; j+=nn.batch_size) {
             memset(expected.v, 0, expected.n * expected.p * sizeof(double));
             for (size_t k = 0; k < nn.batch_size; k++) {
                 LabeledImage img = dataset[j + k];
@@ -372,15 +386,29 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
             error += backward_pass(&nn, expected);
             stat_iter++;
         }
-        error /= len_dataset;
-        print_stat(&nn, error);
+        error /= len_training;
+        double test_error = 0;
+        for (szt j = 0; j < len_testing; j+=1) {
+            szt k = len_training + j;
+            memset(expected.v, 0, expected.n * expected.p * sizeof(double));
+            LabeledImage img = dataset[k];
+            expected.v[img.label] = 1;
+            memcpy(nn.layers[0].A.v, img.data, 784 * sizeof(double));
+            forward_pass(&nn);
+            sub(nn.layers[2].A, expected, nn.updates.dZ2);
+            test_error += sum_abs(nn.updates.dZ2);
+            stat_iter++;
+        }
+        test_error /= len_testing;
+        print_stat(&nn, error, test_error);
         //if (i % 2 == 0) {
             t = clock() - t;
             double time_taken = ((double)t)/CLOCKS_PER_SEC;
             double iterpersec = (double)stat_iter / time_taken;
-            printf("\33[2K\r[%zu] Error: %.4f    LR: %f     Speed: %.3f iter/s",
+            printf("\33[2K\r[%zu] Error: %.4f    Validation: %.4f    LR: %f     Speed: %.3f iter/s",
                     i,
                     error,
+                    test_error,
                     nn.updates.current_learning_rate,
                     iterpersec);
             fflush(stdout);

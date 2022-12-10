@@ -58,8 +58,9 @@ NeuralNetwork new_network(double learning_rate);
 Layer new_layer(enum ActivationFunction activation, size_t num_nodes, size_t prev_num_nodes, size_t batch_size);
 void free_network(NeuralNetwork* nn);
 void free_layer(Layer* layer);
-void print_stat(NeuralNetwork* nn, double error);
+void print_stat(NeuralNetwork* nn, double error, double validation);
 
+double gauss_noise();
 void cmd_train(int argc, char **argv);
 void cmd_guess(int argc, char **argv);
 void cmd_test(int argc, char **argv);

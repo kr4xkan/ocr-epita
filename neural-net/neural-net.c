@@ -5,393 +5,507 @@
 #include <string.h>
 #include <time.h>
 
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_surface.h>
+#include <SDL.h>
 
 #include "../utils.h"
 #include "matrix.h"
 #include "neural-net.h"
 
-int main(int argc, char **argv) {
-    // Initialize randomizer
-    srand((unsigned int)time(NULL));
-
-    test_matrix();
-
-    if (argc < 2) {
-        errx(1, "Usage: ./neural-net --xor|digit|guess");
+void free_network(NeuralNetwork* nn) {
+    for (szt i = 0; i < nn->layer_count; i++) {
+        free_layer(&nn->layers[i]);
     }
+    free(nn->layers);
+    free_matrix(&nn->updates.dZ2);
+    free_matrix(&nn->updates.dW2);
+    free_matrix(&nn->updates.mW2);
+    free_matrix(&nn->updates.dB2);
+    free_matrix(&nn->updates.mB2);
+    free_matrix(&nn->updates.dZ1);
+    free_matrix(&nn->updates.dW1);
+    free_matrix(&nn->updates.mW1);
+    free_matrix(&nn->updates.dB1);
+    free_matrix(&nn->updates.mB1);
 
-    if (strcmp(argv[1], "--digit") == 0) {
-        errx(1, "Not yet implemented!");
-    } else if (strcmp(argv[1], "--guess") == 0) {
-        if (argc != 4) {
-            errx(1, "\nUsage: ./neural-net --guess 0|1 0|1\nExample: "
-                    "./neural-net --guess 0 1");
-        }
-        printf("%d\n", guess_xor(argv + 2));
-    } else {
-        if (argc == 3) {
-            main_xor(argv[2]);
-        } else {
-            main_xor("");
-        }
-    }
+    if (nn->csv != NULL)
+        fclose(nn->csv);
 }
 
-int guess_xor(char **input) {
-    NeuralNetwork nn;
-    load_network(&nn, "save.neural");
+void free_layer(Layer* layer) {
+    free_matrix(&layer->A);
+    free_matrix(&layer->Z);
+    free_matrix(&layer->W);
+    free_matrix(&layer->B);
+}
 
+Layer new_layer(
+        enum ActivationFunction activation,
+        size_t num_nodes,
+        size_t prev_num_nodes,
+        size_t batch_size
+) {
+    Layer l;
+    l.size = num_nodes;
+    l.activation = activation;
+    l.A = new_matrix(num_nodes, batch_size);
+    l.Z = new_matrix(num_nodes, batch_size);
+    l.B = new_random_matrix(num_nodes, 1);
+    l.W = new_random_matrix(num_nodes, prev_num_nodes + (prev_num_nodes == 0));
+    return l;
+}
+
+// size - activation - W - B
+void serialize_layer(Buffer* buf, Layer* layer) {
+    size_t required_size = sizeof(enum ActivationFunction) + sizeof(size_t);
+    reserve_space(buf, required_size);
+    write_buffer(buf, &layer->size, sizeof(size_t));
+    write_buffer(buf, &layer->activation, sizeof(enum ActivationFunction));
+    serialize_matrix(buf, &layer->W);
+    serialize_matrix(buf, &layer->B);
+}
+
+Layer deserialize_layer(Buffer* buf, size_t batch_size) {
+    Layer l;
+    size_t i;
+    read_buffer(buf, &i, sizeof(size_t));
+    l.size = i;
+    read_buffer(buf, &i, sizeof(enum ActivationFunction));
+    l.activation = i;
+    l.W = deserialize_matrix(buf);
+    l.B = deserialize_matrix(buf);
+    l.A = new_matrix(l.size, batch_size);
+    l.Z = new_matrix(l.size, batch_size);
+    return l;
+}
+
+NeuralNetwork new_network(double learning_rate) {
+    NeuralNetwork nn;
+    nn.layer_count = 3;
+    nn.learning_rate = learning_rate;
+    nn.decay = 0.000001;
+    nn.momentum = 0.5;
     nn.batch_size = 1;
-
-    float *W1 = nn.weights[0];
-    float *W2 = nn.weights[1];
-    float *b1 = nn.bias[0];
-    float *b2 = nn.bias[1];
-
-    float *Z1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *A1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *Z2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
-    float *A2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
-
-    float X[2] = {atof(input[0]), atof(input[1])};
-    // FORWARD PROPAGATION
-    mat_multiply(Z1, W1, X, nn.weights_sizes[0][0], nn.weights_sizes[0][1],
-                 nn.batch_size);
-    mat_add_repeat(Z1, Z1, b1, nn.layers_node_count[1], nn.batch_size, 1);
-    mat_copy(Z1, A1, nn.layers_node_count[1] * nn.batch_size);
-
-    // mat_apply_relu(A1, network.layers_node_count[1] * network.batch_size);
-    mat_apply_sigmoid(A1, nn.layers_node_count[1] * nn.batch_size);
-
-    mat_multiply(Z2, W2, A1, nn.weights_sizes[1][0], nn.weights_sizes[1][1],
-                 nn.batch_size);
-    mat_add_repeat(Z2, Z2, b2, nn.layers_node_count[2], nn.batch_size, 1);
-    mat_copy(Z2, A2, nn.layers_node_count[2] * nn.batch_size);
-
-    // mat_apply_softmax(A2, network.layers_node_count[2], network.batch_size);
-    mat_apply_sigmoid(A2, nn.layers_node_count[2] * nn.batch_size);
-
-    return A2[0] > 0.5;
+    nn.updates.current_learning_rate = nn.learning_rate;
+    nn.updates.iterations = 0;
+    nn.layers = calloc(nn.layer_count, sizeof(Layer));
+    nn.layers[0] = new_layer(ReLU, 784, 0, nn.batch_size);
+    nn.layers[1] = new_layer(ReLU, 30, 784, nn.batch_size);
+    nn.layers[2] = new_layer(SoftMax, 10, 30, nn.batch_size);
+    nn.updates.dZ2 = new_matrix(nn.layers[2].Z.n, nn.layers[2].Z.p);
+    nn.updates.dW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
+    nn.updates.mW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
+    nn.updates.dB2 = new_matrix(nn.layers[2].B.n, nn.layers[2].B.p);
+    nn.updates.mB2 = new_matrix(nn.layers[2].B.n, nn.layers[2].B.p);
+    nn.updates.dZ1 = new_matrix(nn.layers[1].Z.n, nn.layers[1].Z.p);
+    nn.updates.dW1 = new_matrix(nn.layers[1].W.n, nn.layers[1].W.p);
+    nn.updates.mW1 = new_matrix(nn.layers[1].W.n, nn.layers[1].W.p);
+    nn.updates.dB1 = new_matrix(nn.layers[1].B.n, nn.layers[1].B.p);
+    nn.updates.mB1 = new_matrix(nn.layers[1].B.n, nn.layers[1].B.p);
+    nn.csv = fopen("stat.csv", "w");
+    fprintf(nn.csv, "error,lr\n");
+    return nn;
 }
 
-int main_xor(char *path) {
-    printf("XOR Neural Network\n");
+// layer_count - iterations - batch_size - current_learning_rate - learning_rate - decay - momentum - layers
+void serialize_network(Buffer* buf, NeuralNetwork* nn) {
+    size_t required_size = sizeof(double) * 4 + sizeof(size_t) * 3;
+    reserve_space(buf, required_size);
 
-    FILE *outputFile;
-    outputFile = fopen("out.csv", "a");
+    write_buffer(buf, &nn->layer_count, sizeof(size_t));
+    write_buffer(buf, &nn->updates.iterations, sizeof(size_t));
+    write_buffer(buf, &nn->batch_size, sizeof(size_t));
+    write_buffer(buf, &nn->updates.current_learning_rate, sizeof(double));
+    write_buffer(buf, &nn->learning_rate, sizeof(double));
+    write_buffer(buf, &nn->decay, sizeof(double));
+    write_buffer(buf, &nn->momentum, sizeof(double));
+
+    for (size_t i = 1; i < nn->layer_count; i++)
+        serialize_layer(buf, nn->layers + i);
+}
+
+NeuralNetwork deserialize_network(Buffer* buf) {
+    NeuralNetwork nn;
+    size_t i;
+    read_buffer(buf, &i, sizeof(size_t));
+    nn.layer_count = i;
+    read_buffer(buf, &i, sizeof(size_t));
+    nn.updates.iterations = i;
+    read_buffer(buf, &i, sizeof(size_t));
+    nn.batch_size = i;
+    read_buffer(buf, &nn.updates.current_learning_rate, sizeof(double));
+    read_buffer(buf, &nn.learning_rate, sizeof(double));
+    read_buffer(buf, &nn.decay, sizeof(double));
+    read_buffer(buf, &nn.momentum, sizeof(double));
+    nn.layers = malloc(nn.layer_count * sizeof(Layer));
+    for (size_t i = 1; i < nn.layer_count; i++)
+        nn.layers[i] = deserialize_layer(buf, nn.batch_size);
+
+    nn.layers[0] = new_layer(ReLU, 784, 0, nn.batch_size);
+    nn.updates.dZ2 = new_matrix(nn.layers[2].Z.n, nn.layers[2].Z.p);
+    nn.updates.dW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
+    nn.updates.mW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
+    nn.updates.dB2 = new_matrix(nn.layers[2].B.n, nn.layers[2].B.p);
+    nn.updates.mB2 = new_matrix(nn.layers[2].B.n, nn.layers[2].B.p);
+    nn.updates.dZ1 = new_matrix(nn.layers[1].Z.n, nn.layers[1].Z.p);
+    nn.updates.dW1 = new_matrix(nn.layers[1].W.n, nn.layers[1].W.p);
+    nn.updates.mW1 = new_matrix(nn.layers[1].W.n, nn.layers[1].W.p);
+    nn.updates.dB1 = new_matrix(nn.layers[1].B.n, nn.layers[1].B.p);
+    nn.updates.mB1 = new_matrix(nn.layers[1].B.n, nn.layers[1].B.p);
+    nn.csv = fopen("stat.csv", "w");
+    fprintf(nn.csv, "error,lr\n");
+    return nn;
+}
+
+void print_stat(NeuralNetwork* nn, double error) {
+    fprintf(nn->csv, "%f,%f\n", error, nn->updates.current_learning_rate);
+    fflush(nn->csv);
+}
+
+void forward_pass(NeuralNetwork* nn) {
+    for (szt i = 1; i < nn->layer_count; i++) {
+        Layer prev = nn->layers[i - 1];
+        Layer cur = nn->layers[i];
+        multiply(cur.W, prev.A, cur.Z);
+        add(cur.Z, cur.B, cur.Z);
+        switch (cur.activation) {
+            case ReLU:
+                relu(cur.Z, cur.A);
+                break;
+            case SoftMax:
+                softmax(cur.Z, cur.A);
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+double backward_pass(NeuralNetwork* nn, Matrix expected) {
+    nn->updates.current_learning_rate =
+        nn->learning_rate * (1 / (1 + nn->decay * nn->updates.iterations));
+
+    sub(nn->layers[2].A, expected, nn->updates.dZ2);
+    Matrix A1T = transpose(nn->layers[1].A);
+    multiply(nn->updates.dZ2, A1T, nn->updates.dW2);
+
+    Matrix W2T = transpose(nn->layers[2].W);
+    multiply(W2T, nn->updates.dZ2, nn->updates.dZ1);
+    Matrix dRelu = relu_deriv(nn->layers[1].Z);
+    multiply_ew(nn->updates.dZ1, dRelu, nn->updates.dZ1);
+    Matrix A0T = transpose(nn->layers[0].A);
+    multiply(nn->updates.dZ1, A0T, nn->updates.dW1);
+
+    multiply_scalar(nn->updates.dW2, nn->updates.current_learning_rate/nn->batch_size, nn->updates.dW2);
+    multiply_scalar(nn->updates.dW1, nn->updates.current_learning_rate/nn->batch_size, nn->updates.dW1);
+    sum_vector(nn->updates.dZ2, nn->updates.dB2);
+    sum_vector(nn->updates.dZ1, nn->updates.dB1);
+    multiply_scalar(nn->updates.dB2, nn->updates.current_learning_rate/nn->batch_size, nn->updates.dB2);
+    multiply_scalar(nn->updates.dB1, nn->updates.current_learning_rate/nn->batch_size, nn->updates.dB1);
+
+    multiply_scalar(nn->updates.mW2, nn->momentum, nn->updates.mW2);
+    multiply_scalar(nn->updates.mW1, nn->momentum, nn->updates.mW1);
+    multiply_scalar(nn->updates.mB2, nn->momentum, nn->updates.mB2);
+    multiply_scalar(nn->updates.mB1, nn->momentum, nn->updates.mB1);
+    sub(nn->updates.mW2, nn->updates.dW2, nn->updates.mW2);
+    sub(nn->updates.mW1, nn->updates.dW1, nn->updates.mW1);
+    sub(nn->updates.mB2, nn->updates.dB2, nn->updates.mB2);
+    sub(nn->updates.mB1, nn->updates.dB1, nn->updates.mB1);
+
+    add(nn->layers[2].W, nn->updates.mW2, nn->layers[2].W);
+    add(nn->layers[1].W, nn->updates.mW1, nn->layers[1].W);
+    add(nn->layers[2].B, nn->updates.mB2, nn->layers[2].B);
+    add(nn->layers[1].B, nn->updates.mB1, nn->layers[1].B);
+
+    free_matrix(&W2T);
+    free_matrix(&A1T);
+    free_matrix(&A0T);
+    free_matrix(&dRelu);
+
+    nn->updates.iterations++;
+    return sum_abs(nn->updates.dZ2);
+}
+
+void cmd_train(int argc, char **argv) {
+    if (argc != 4)
+        errx(1, "./neural-net --train "
+                "[load,new] <dataset_path> <iterations> <learning_rate>");
+    size_t iterations = atof(argv[2]);
+    double learning_rate = atof(argv[3]);
 
     NeuralNetwork nn;
-
-    int layers_node_count[3];
-    layers_node_count[0] = 2;
-    layers_node_count[1] = 8;
-    layers_node_count[2] = 1;
-
-    if (strlen(path) != 0) {
-        load_network(&nn, path);
-        printf("Network loaded from save\n");
+    if (strcmp(argv[0], "load") == 0) {
+        Buffer* buf = load_buffer("save.nrl");
+        nn = deserialize_network(buf);
+        free_buffer(buf);
+        printf("Loaded network from save\n");
     } else {
-        int layer_count = 3;
-        float learning_rate = 0.05;
-        int batch_size = 4;
-        setup_network(&nn, layers_node_count, batch_size, learning_rate,
-                      layer_count);
-        printf("New network created\n");
+        nn = new_network(learning_rate);
     }
 
-    float X[2 * 4] = {0, 0, 1, 1, 0, 1, 0, 1};
-    float Y[4] = {0, 1, 1, 0};
+    train_network(&nn, argv[1], iterations);
+    free_network(&nn);
+}
 
-    float *W1 = nn.weights[0];
-    float *W2 = nn.weights[1];
-    float *b1 = nn.bias[0];
-    float *b2 = nn.bias[1];
+char recognize_digit(SDL_Surface* surf) {
+    NeuralNetwork nn;
+    Buffer* buf = load_buffer("../neural-net/save.nrl");
+    nn = deserialize_network(buf);
+    free_buffer(buf);
 
-    float *Z1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *A1 = malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *Z2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
-    float *A2 = malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
+    double* img = malloc(784 * sizeof(double));
 
-    float *dZ1 =
-        malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *dW1 =
-        malloc(nn.weights_sizes[0][0] * nn.weights_sizes[0][1] * sizeof(float));
-    float db1;
+    load_from_surface(img, surf);
+    free(nn.layers[0].A.v);
+    nn.layers[0].A.v = img;
+    forward_pass(&nn);
 
-    float *dZ2 =
-        malloc(nn.layers_node_count[2] * nn.batch_size * sizeof(float));
-    float *dW2 =
-        malloc(nn.weights_sizes[1][0] * nn.weights_sizes[1][1] * sizeof(float));
-    float db2;
-
-    float *A1_T =
-        malloc(nn.batch_size * nn.layers_node_count[1] * sizeof(float));
-    float *dReluZ1 =
-        malloc(nn.layers_node_count[1] * nn.batch_size * sizeof(float));
-    float *W2_T =
-        malloc(nn.weights_sizes[1][1] * nn.weights_sizes[1][0] * sizeof(float));
-    float *X_T = malloc(nn.batch_size * 2 * sizeof(float));
-
-    fprintf(outputFile, "epoch,training\n");
-    for (int k = 0; k < 1000001; k++) {
-        // FORWARD PROPAGATION
-        mat_multiply(Z1, W1, X, nn.weights_sizes[0][0], nn.weights_sizes[0][1],
-                     nn.batch_size);
-        mat_add_repeat(Z1, Z1, b1, nn.layers_node_count[1], nn.batch_size, 1);
-        mat_copy(Z1, A1, nn.layers_node_count[1] * nn.batch_size);
-
-        // mat_apply_relu(A1, network.layers_node_count[1] *
-        // network.batch_size);
-        mat_apply_sigmoid(A1, nn.layers_node_count[1] * nn.batch_size);
-
-        mat_multiply(Z2, W2, A1, nn.weights_sizes[1][0], nn.weights_sizes[1][1],
-                     nn.batch_size);
-        mat_add_repeat(Z2, Z2, b2, nn.layers_node_count[2], nn.batch_size, 1);
-        mat_copy(Z2, A2, nn.layers_node_count[2] * nn.batch_size);
-
-        // mat_apply_softmax(A2, network.layers_node_count[2],
-        // network.batch_size);
-        mat_apply_sigmoid(A2, nn.layers_node_count[2] * nn.batch_size);
-
-        // CALCULATE DEVIATION
-
-        mat_substract(dZ2, A2, Y, 1, nn.batch_size);
-        mat_transpose(A1_T, A1, nn.layers_node_count[1], nn.batch_size);
-        mat_multiply(dW2, dZ2, A1_T, nn.layers_node_count[2], nn.batch_size,
-                     nn.layers_node_count[1]);
-        mat_multiply_scalar(dW2, dW2, (float)1 / nn.batch_size,
-                            nn.layers_node_count[2], nn.layers_node_count[1]);
-        db2 = mat_sum(dZ2, nn.layers_node_count[2] * nn.batch_size) /
-              nn.batch_size;
-
-        mat_copy(A1, dReluZ1, nn.layers_node_count[1] * nn.batch_size);
-        // mat_apply_drelu(dReluZ1, network.layers_node_count[1] *
-        // network.batch_size);
-        mat_apply_dsigmoid(dReluZ1, nn.layers_node_count[1] * nn.batch_size);
-
-        mat_transpose(W2_T, W2, nn.weights_sizes[1][0], nn.weights_sizes[1][1]);
-
-        mat_multiply(dZ1, W2_T, dZ2, nn.weights_sizes[1][1],
-                     nn.weights_sizes[1][0], nn.batch_size);
-        mat_multiply_hadamard(dZ1, dZ1, dReluZ1, nn.layers_node_count[1],
-                              nn.batch_size);
-
-        mat_transpose(X_T, X, 2, 4);
-        mat_multiply(dW1, dZ1, X_T, nn.layers_node_count[1], nn.batch_size, 2);
-        mat_multiply_scalar(dW1, dW1, (float)1 / nn.batch_size,
-                            nn.layers_node_count[1], nn.layers_node_count[0]);
-        db1 = mat_sum(dZ1, nn.layers_node_count[1] * nn.batch_size) /
-              nn.batch_size;
-
-        // UPDATE INTERNAL PARAMETERS
-        mat_multiply_scalar(dW1, dW1, nn.learning_rate, nn.layers_node_count[1],
-                            nn.layers_node_count[0]);
-        mat_multiply_scalar(dW2, dW2, nn.learning_rate, nn.layers_node_count[2],
-                            nn.layers_node_count[1]);
-        db1 *= nn.learning_rate;
-        db2 *= nn.learning_rate;
-
-        mat_substract(W1, W1, dW1, nn.layers_node_count[1],
-                      nn.layers_node_count[0]);
-        mat_substract(W2, W2, dW2, nn.layers_node_count[2],
-                      nn.layers_node_count[1]);
-        mat_substract_ew(b1, b1, db1, nn.layers_node_count[1], 1);
-        mat_substract_ew(b2, b2, db2, nn.layers_node_count[2], 1);
-
-        float deviation = 0;
-        for (int i = 0; i < nn.batch_size; i++) {
-            deviation += fabsf(Y[i] - A2[i]);
+    double max = nn.layers[2].A.v[0];
+    size_t max_index = 0;
+    for (size_t j = 1; j < 10; j++) {
+        if (nn.layers[2].A.v[j] > max) {
+            max_index = j;
+            max = nn.layers[2].A.v[j];
         }
-        deviation /= nn.batch_size;
-        if (k % 100 == 0) {
-            printf("\rEPOCH: %7d ~> %.5f", k, deviation);
-            fflush(stdout);
+    }
+
+    free_network(&nn);
+    return (char)max_index;
+}
+
+void cmd_guess(int argc, char **argv) {
+    if (argc != 1)
+        errx(1, "./neural-net --guess <image_path>");
+
+    NeuralNetwork nn;
+    Buffer* buf = load_buffer("save.nrl");
+    nn = deserialize_network(buf);
+    free_buffer(buf);
+
+    double* img = malloc(784 * sizeof(double));
+
+    load_image(img, argv[0]);
+    nn.layers[0].A.v = img;
+    forward_pass(&nn);
+
+    print_mat(nn.layers[2].A);
+
+    free(img);
+    free_network(&nn);
+}
+
+void concat_dataset(LabeledImage** dest, LabeledImage* src, szt* ld, szt* ls) {
+    *ld += *ls;
+    *dest = realloc(*dest, *ld * sizeof(LabeledImage));
+    memcpy(*dest + (*ld - *ls), src, *ls * sizeof(LabeledImage));
+    free(src);
+}
+
+void cmd_test(int argc, char **argv) {
+    if (argc != 1)
+        errx(1, "./neural-net --test <image_path>");
+
+    NeuralNetwork nn;
+    Buffer* buf = load_buffer("save.nrl");
+    nn = deserialize_network(buf);
+    free_buffer(buf);
+
+    szt len_dataset;
+    //LabeledImage* dataset = load_dataset(argv[0], &len_dataset);
+    LabeledImage* dataset = load_all_cutter_set(argv[0], &len_dataset);
+
+    szt correct = 0;
+    for (size_t i = 0; i < len_dataset; i++) {
+        memcpy(nn.layers[0].A.v, dataset[i].data, 784 * sizeof(double));
+        forward_pass(&nn);
+
+        double max = nn.layers[2].A.v[0];
+        size_t max_index = 0;
+        for (size_t j = 1; j < 10; j++) {
+            if (nn.layers[2].A.v[j] > max) {
+                max_index = j;
+                max = nn.layers[2].A.v[j];
+            }
         }
-        fprintf(outputFile, "%d,%.5f\n", k, deviation);
-        fflush(outputFile);
+
+        correct += max_index == (size_t)dataset[i].label;
+        
+        printf("\rProcessed %zu/%zu", i, len_dataset);
+        fflush(stdout);
     }
     printf("\n");
 
-    save_network(&nn);
+    printf("%.2f%% correct (%zu/%zu)\n", (float)correct*100/len_dataset, correct, len_dataset);
 
-    free(Z1);
-    free(A1);
-    free(Z2);
-    free(A2);
-    free(dZ1);
-    free(dW1);
-    free(dZ2);
-    free(dW2);
-    free(A1_T);
-    free(dReluZ1);
-    free(W2_T);
-    free(X_T);
-
-    for (int i = 0; i < nn.layer_count - 1; i++) {
-        free(nn.weights[i]);
-        free(nn.bias[i]);
-    }
-
-    free(nn.weights);
-    free(nn.bias);
-    free(nn.layers);
-    fclose(outputFile);
-
-    return 0;
+    free_network(&nn);
+    free(dataset);
 }
 
-void save_network(NeuralNetwork *nn) {
-    FILE *file;
-    file = fopen("save.neural", "w");
+//int main(int argc, char **argv) {
+//    // Initialize randomizer
+//    srand((unsigned int)time(NULL));
+// 
+//    if (argc == 1)
+//        errx(1, "./neural-net --[train,guess]");
+// 
+//    if (strcmp(argv[1], "--train") == 0) {
+//        cmd_train(argc - 2, argv + 2);
+//    } else if (strcmp(argv[1], "--guess") == 0) {
+//        cmd_guess(argc - 2, argv + 2);
+//    } else if (strcmp(argv[1], "--test") == 0) {
+//        cmd_test(argc - 2, argv + 2);
+//    }
+// 
+//    return 0;
+//}
 
-    fprintf(file, "%d\n", nn->layer_count);
-    fprintf(file, "%d\n", nn->batch_size);
-    fprintf(file, "%f\n", nn->learning_rate);
-    fprintf(file, "--l\n");
-    for (int k = 0; k < nn->layer_count; k++) {
-        fprintf(file, "%d\n", nn->layers_node_count[k]);
-    }
-    fprintf(file, "--w\n");
-    for (int k = 0; k < nn->layer_count - 1; k++) {
-        size_t len = nn->weights_sizes[k][0] * nn->weights_sizes[k][1];
-        for (size_t c = 0; c < len; c++) {
-            fprintf(file, c == len - 1 ? "%f" : "%f,", nn->weights[k][c]);
+void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterations) {
+    NeuralNetwork nn = *neural_net;
+
+    szt len_dataset;
+    //LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
+    LabeledImage* dataset = load_all_cutter_set(dataset_path, &len_dataset);
+
+    Matrix expected = new_matrix(10, nn.batch_size);
+    
+    size_t stat_iter = 0;
+    clock_t t = clock();
+    for (szt i = 0; i < iterations; i++) {
+        // Randomize array
+        for (szt i = 0; i < len_dataset - 1; i++) {
+            szt j = i + rand() / (RAND_MAX / (len_dataset - i) + 1);
+            LabeledImage t = dataset[j];
+            dataset[j] = dataset[i];
+            dataset[i] = t;
         }
-        fprintf(file, "\n");
-    }
-    fprintf(file, "--b\n");
-    for (int k = 0; k < nn->layer_count - 1; k++) {
-        size_t len = nn->layers_node_count[k + 1];
-        for (size_t c = 0; c < len; c++) {
-            fprintf(file, c == len - 1 ? "%f" : "%f,", nn->bias[k][c]);
-        }
-        fprintf(file, "\n");
-    }
-    fclose(file);
-}
 
-enum Mode {
-    HYPERPARAMS,
-    LAYERS,
-    WEIGHTS,
-    BIAS,
-};
-
-void load_network(NeuralNetwork *nn, char *path) {
-    FILE *file;
-    file = fopen(path, "r");
-
-    if (!file) {
-        errx(1, "Could not load network from: %s", path);
-    }
-
-    char line[500];
-    int n = 0;
-    enum Mode mode = HYPERPARAMS;
-    while (fgets(line, 500, file) != NULL) {
-        if (strncmp(line, "--", 2) == 0) {
-            char *modestr = line + 2;
-            if (strncmp(modestr, "l", 1) == 0) {
-                mode = LAYERS;
-                nn->layers = calloc(nn->layer_count, sizeof(Layer));
-                nn->weights = malloc((nn->layer_count - 1) * sizeof(float *));
-                nn->bias = malloc((nn->layer_count - 1) * sizeof(float *));
-                nn->layers_node_count = malloc(nn->layer_count * sizeof(int));
-            } else if (strncmp(modestr, "w", 1) == 0) {
-                mode = WEIGHTS;
-                for (int i = 1; i < nn->layer_count; i++) {
-                    nn->weights_sizes[i - 1][0] = nn->layers_node_count[i];
-                    nn->weights_sizes[i - 1][1] = nn->layers_node_count[i - 1];
-                    nn->weights[i - 1] =
-                        malloc(nn->weights_sizes[i - 1][0] *
-                               nn->weights_sizes[i - 1][1] * sizeof(float));
-                    nn->bias[i - 1] =
-                        calloc(nn->layers_node_count[i], sizeof(float));
-                }
-            } else if (strncmp(modestr, "b", 1) == 0) {
-                mode = BIAS;
+        double error = 0;
+        for (szt j = 0; j < len_dataset; j+=nn.batch_size) {
+            memset(expected.v, 0, expected.n * expected.p * sizeof(double));
+            for (size_t k = 0; k < nn.batch_size; k++) {
+                LabeledImage img = dataset[j + k];
+                expected.v[img.label + (k * 10)] = 1;
+                memcpy(nn.layers[0].A.v + (784 * k), img.data, 784 * sizeof(double));
             }
-            n = -1;
-        } else {
-            char *num;
-            int i = 0;
-            switch (mode) {
-            case HYPERPARAMS:
-                if (n == 0) {
-                    nn->layer_count = atoi(line);
-                } else if (n == 1) {
-                    nn->batch_size = atoi(line);
-                } else if (n == 2) {
-                    nn->learning_rate = atof(line);
-                }
-                break;
-
-            case LAYERS:
-                nn->layers_node_count[n] = atoi(line);
-                break;
-
-            case WEIGHTS:
-                num = strtok(line, ",");
-                while (num != NULL) {
-                    nn->weights[n][i] = atof(num);
-                    i++;
-                    num = strtok(NULL, ",");
-                }
-                break;
-
-            case BIAS:
-                num = strtok(line, ",");
-                while (num != NULL) {
-                    nn->bias[n][i] = atof(num);
-                    i++;
-                    num = strtok(NULL, ",");
-                }
-                break;
-            }
+            forward_pass(&nn);
+            error += backward_pass(&nn, expected);
+            stat_iter++;
         }
-        n++;
-    }
-}
-
-void setup_network(NeuralNetwork *nn, int *layers_node_count, int batch_size,
-                   float learning_rate, int layer_count) {
-    nn->weights = malloc((layer_count - 1) * sizeof(float *));
-    nn->bias = malloc((layer_count - 1) * sizeof(float *));
-    nn->layers = calloc(layer_count, sizeof(Layer));
-    nn->batch_size = batch_size;
-
-    for (int i = 1; i < layer_count; i++) {
-        nn->weights_sizes[i - 1][0] = layers_node_count[i];
-        nn->weights_sizes[i - 1][1] = layers_node_count[i - 1];
-        nn->weights[i - 1] =
-            malloc(nn->weights_sizes[i - 1][0] * nn->weights_sizes[i - 1][1] *
-                   sizeof(float));
-        nn->bias[i - 1] = calloc(layers_node_count[i], sizeof(float));
-        nn->layers[i].data =
-            malloc(layers_node_count[i] * nn->batch_size * sizeof(float));
-        nn->layers[i].z =
-            malloc(layers_node_count[i] * nn->batch_size * sizeof(float));
-        nn->layers[i].dz =
-            malloc(layers_node_count[i] * nn->batch_size * sizeof(float));
-        nn->layers[i].size = layers_node_count[i];
-        nn->layers[i].disabled = calloc(layers_node_count[i], sizeof(char));
-        mat_randomize(nn->weights[i - 1], nn->weights_sizes[i - 1][0] *
-                                              nn->weights_sizes[i - 1][1]);
+        error /= len_dataset;
+        print_stat(&nn, error);
+        //if (i % 2 == 0) {
+            t = clock() - t;
+            double time_taken = ((double)t)/CLOCKS_PER_SEC;
+            double iterpersec = (double)stat_iter / time_taken;
+            printf("\33[2K\r[%zu] Error: %.4f    LR: %f     Speed: %.3f iter/s",
+                    i,
+                    error,
+                    nn.updates.current_learning_rate,
+                    iterpersec);
+            fflush(stdout);
+            stat_iter = 0;
+            t = clock();
+        //}
     }
 
-    nn->layer_count = layer_count;
-    nn->layers_node_count = layers_node_count;
-    nn->learning_rate = learning_rate;
-    nn->loss = 0;
+    Buffer* buf = new_buffer();
+    serialize_network(buf, &nn);
+    printf("\nSerialized to buffer, size = %zu , capacity = %zu \n\n", buf->size, buf->capacity);
+    save_buffer(buf, "save.nrl");
+    free_buffer(buf);
+
+    free_matrix(&expected);
+    free(dataset);
 }
 
-LabeledImage *load_dataset(char *path, size_t *len_d) {
+LabeledImage* load_all_cutter_set(char* dataset_path, szt* len_d) {
+    szt len_dataset;
+    szt len_tmp;
+    char* path = malloc((strlen(dataset_path) + 3) * sizeof(char));
+    LabeledImage* dataset = load_cutter_set(strcat(strcpy(path, dataset_path), "1/"), &len_dataset);
+    LabeledImage* dataset_m;
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "2/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "4/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "4b/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+    dataset_m = load_cutter_set(strcat(strcpy(path, dataset_path), "5/"), &len_tmp);
+    concat_dataset(&dataset, dataset_m, &len_dataset, &len_tmp);
+    free(path);
+
+    *len_d = len_dataset;
+    return dataset;
+}
+
+LabeledImage* load_cutter_set(char* path, szt* len_d) {
     DIR *d;
     struct dirent *dir;
     d = opendir(path);
-    size_t len = 0;
+    szt len = 0;
+
+    if (!d)
+        errx(1, "Could not load dataset at '%s'", path);
+
+    while ((dir = readdir(d)) != NULL) {
+        if (!strcmp(strrchr(dir->d_name, '\0') - 4, ".png")) {
+            len++;
+        }
+    }
+    closedir(d);
+
+    LabeledImage *dataset = malloc(len * sizeof(LabeledImage));
+    d = opendir(path);
+
+    szt i = 0;
+    while ((dir = readdir(d)) != NULL) {
+        if (!strcmp(strrchr(dir->d_name, '\0') - 4, ".png")) {
+            char *tmppath =
+                malloc((strlen(path) + strlen(dir->d_name) + 5) * sizeof(char));
+            load_image(dataset[i].data,
+                      strcat(strcpy(tmppath, path), dir->d_name));
+            int x = dir->d_name[0] - 48 - 1;
+            int y = dir->d_name[2] - 48 - 1;
+            dataset[i].label = y * 9 + x;
+            free(tmppath);
+            i++;
+        }
+    }
+    closedir(d);
+
+    int* labels = malloc(len * sizeof(int));
+    char* label_path = malloc((strlen(path) + 11) * sizeof(char));
+    FILE* label_file = fopen(strcat(strcpy(label_path, path), "labels.nrl"), "r");
+    char str[5];
+    i = 0;
+    while (fgets(str, 5, label_file) != NULL) {
+        labels[i] = str[0] - 48;
+        i++;
+    }
+
+    for (szt i = 0; i < len; i++)
+        dataset[i].label = labels[dataset[i].label];
+
+    fclose(label_file);
+    free(label_path);
+    free(labels);
+
+    for (szt i = 0; i < len - 1; i++) {
+        szt j = i + rand() / (RAND_MAX / (len - i) + 1);
+        LabeledImage t = dataset[j];
+        dataset[j] = dataset[i];
+        dataset[i] = t;
+    }
+
+    printf("Loaded %zu images\n", len);
+    (*len_d) = len;
+    return dataset;
+}
+
+LabeledImage* load_dataset(char *path, szt *len_d) {
+    DIR *d;
+    struct dirent *dir;
+    d = opendir(path);
+    szt len = 0;
 
     if (!d)
         errx(1, "Could not load dataset at '%s'", path);
@@ -406,36 +520,38 @@ LabeledImage *load_dataset(char *path, size_t *len_d) {
     LabeledImage *dataset = malloc(len * sizeof(LabeledImage));
     d = opendir(path);
 
-    size_t i = 0;
+    szt i = 0;
     while ((dir = readdir(d)) != NULL) {
         if (!strcmp(strrchr(dir->d_name, '\0') - 4, ".bmp")) {
             char *tmppath =
                 malloc((strlen(path) + strlen(dir->d_name) + 5) * sizeof(char));
-            get_input(dataset[i].data,
+            load_image(dataset[i].data,
                       strcat(strcpy(tmppath, path), dir->d_name));
             dataset[i].label = dir->d_name[0] - 48;
             free(tmppath);
+            printf("\rLoaded %5zu/%zu images", i, len);
+            fflush(stdout);
             i++;
         }
     }
     closedir(d);
 
-    for (size_t i = 0; i < len - 1; i++) {
-        size_t j = i + rand() / (RAND_MAX / (len - i) + 1);
+    for (szt i = 0; i < len - 1; i++) {
+        szt j = i + rand() / (RAND_MAX / (len - i) + 1);
         LabeledImage t = dataset[j];
         dataset[j] = dataset[i];
         dataset[i] = t;
     }
 
-    printf("Loaded %zu images\n", len);
+    printf("\33[2K\rLoaded %zu images\n", len);
     (*len_d) = len;
     return dataset;
 }
 
-void print_pixel(float *img, int w, int h) {
+void print_pixel(double *img, int w, int h) {
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
-            float a = img[x * 28 + y] * 255;
+            double a = img[x * 28 + y] * 255;
             char c;
             if (a > 240)
                 c = ' ';
@@ -461,12 +577,7 @@ void print_pixel(float *img, int w, int h) {
     }
 }
 
-void get_input(float *res, char *image_path) {
-    SDL_Surface *surface;
-    surface = IMG_Load(image_path);
-    if (!surface) {
-        errx(1, "Could not load image (%s)", image_path);
-    }
+void load_from_surface(double *res, SDL_Surface* surface) {
     int w, h;
     w = surface->w;
     h = surface->h;
@@ -476,9 +587,18 @@ void get_input(float *res, char *image_path) {
         for (int x = 0; x < w; x++) {
             GetPixelColor(surface, x, y, &r, &g, &b);
             unsigned char average = (r + g + b) / 3;
-            res[x * 28 + y] = (float)average / 255;
+            res[x * 28 + y] = (double)average / 255;
         }
     }
+}
+
+void load_image(double *res, char *image_path) {
+    SDL_Surface* surface;
+    surface = IMG_Load(image_path);
+    if (!surface) {
+        errx(1, "Could not load image (%s)", image_path);
+    }
+    load_from_surface(res, surface);
 
     SDL_FreeSurface(surface);
 }

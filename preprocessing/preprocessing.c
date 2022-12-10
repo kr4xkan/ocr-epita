@@ -118,16 +118,14 @@ void dumb_bin(SDL_Surface *surface, int cutter) {
 
 
 
-void binarization(SDL_Surface *surface, char *mode) {
+void binarization(SDL_Surface *surface, int otsu_size) {
     //SDL_Surface *surface = load_image(path);
 
     surface_to_grayscale(surface);
 
     IMG_SavePNG(surface, "grayscale.png");
 
-    int x = sscanf(mode, "%d", &x);
-
-    dumb_bin(surface, x);
+    dumb_bin(surface, otsu_size);
 
     IMG_SavePNG(surface, "binary.png");
 

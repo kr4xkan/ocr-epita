@@ -172,18 +172,17 @@ void grid_to_image(int grid[9][9]){
 		for (int j = 0; j<9 ; j++){
 			load_number(grid[i][j]);
 
-			SDL_BlitSurface(numb_solver, NULL, void_grid, &rect);
+			SDL_BlitScaled(numb_solver, NULL, void_grid, &rect);
 
 			if(rect.y + 67 >= 600){
-				rect.y =0;
+				rect.y = 15;
 			}
 			else{
 				rect.y = rect.y + 67;
 			}
 		}
-	rect.x =0;
+	rect.x = i * 62 + 83 + (i>1) * 10 + (i>3) * 10;
 	}				
-	set_gtk_image_from_surface(image3, void_grid, 1);
 }
 
 //array pour tester la fonction grid_to_image
@@ -242,7 +241,7 @@ void on_next_button_rot(GtkWidget *widget){
 
     //binarisation
     surf_rot = tmp;
-    binarization(surf_rot);
+    binarization(surf_rot, 20);
     surf_bin = loadImage("binary.png");
     set_gtk_image_from_surface(bin_image, surf_bin, 1);
 
@@ -273,13 +272,8 @@ void on_next_button_bin(GtkWidget *widget, gpointer user_data){
     app_state->current_surface = surf_bin;
     app_state->draw.ratio = set_gtk_image_from_surface(app_state->img_lines, app_state->current_surface, 1);
 
-}
-void on_run(GtkButton *open_button, gpointer user_data){
-    AppState *app_state = user_data;
     Run(app_state);
 }
-
-
 
 void on_next_button_cutter(GtkWidget *widget, gpointer user_data){
 //neural-network 
@@ -290,10 +284,10 @@ void on_next_button_cutter(GtkWidget *widget, gpointer user_data){
 //
 	AppState *app_state = user_data;
 //not tried cause errors in cutter part
-//grid_to_image(grid_ex);
+    grid_to_image(grid_ex);
+    set_gtk_image_from_surface(image3, void_grid, 1);
 
 	gtk_widget_hide(GTK_WIDGET(app_state->line_check_window));
-	
 	gtk_widget_show(GTK_WIDGET(solved));
 }
 
@@ -322,14 +316,7 @@ int main(){
 
     gtk_init(NULL, NULL);
 
-    builder = gtk_builder_new_from_file("window_tuto1.glade");
-    GError* error = NULL;
-    if (gtk_builder_add_from_file(builder, "window_ui.glade", &error) == 0){
-        g_printerr("Error loading file: %s\n", error->message);
-        g_clear_error(&error);
-        return 1;
-    }
-
+    builder = gtk_builder_new_from_file("window_ui.glade");
 
     //get components
     //opening window components
@@ -385,10 +372,10 @@ int main(){
     fixed_container3 = GTK_FIXED(gtk_builder_get_object(builder, "fixed_container3"));
     image3 = GTK_IMAGE(gtk_builder_get_object(builder, "image3"));
     save_button = GTK_BUTTON(gtk_builder_get_object(builder, "save_button"));
-    rect.x = 0;
-    rect.y = 0;
-    rect.h = 66;
-    rect.w = 66;
+    rect.x = 15;
+    rect.y = 15;
+    rect.h = 40;
+    rect.w = 40;
 
     //signals
     //WINDOW
@@ -417,7 +404,6 @@ int main(){
     //
     //ROMAIN
     //
-    g_signal_connect(next_button_bin,"clicked",G_CALLBACK(on_run), &app_state);
     gtk_widget_add_events (GTK_WIDGET(area), GDK_BUTTON_PRESS_MASK);
     gtk_widget_add_events (GTK_WIDGET(area), GDK_BUTTON_RELEASE_MASK);
     gtk_widget_add_events (GTK_WIDGET(area), GDK_POINTER_MOTION_MASK);

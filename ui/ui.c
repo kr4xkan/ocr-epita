@@ -310,18 +310,18 @@ void on_next_button_cutter(GtkWidget *widget, gpointer user_data){
 //        binarization(app_state->cells[i], 1);
 //    }
 
-    for (size_t i = 0; i < 81; i++) {
-        SDL_LockSurface(app_state->cells[i]);
-        for (size_t x = 0; x < 28; x++) {
-            for (size_t y = 0; y < 4; y++) {
-                set_pixel(app_state->cells[i], x, y, 0, 0, 0);
-                set_pixel(app_state->cells[i], x, 27-y, 0, 0, 0);
-                set_pixel(app_state->cells[i], y, x, 0, 0, 0);
-                set_pixel(app_state->cells[i], 27-y, x, 0, 0, 0);
-            }
-        }
-        SDL_UnlockSurface(app_state->cells[i]);
-    }
+   // for (size_t i = 0; i < 81; i++) {
+   //     SDL_LockSurface(app_state->cells[i]);
+   //     for (size_t x = 0; x < 28; x++) {
+   //         for (size_t y = 0; y < 4; y++) {
+   //             set_pixel(app_state->cells[i], x, y, 0, 0, 0);
+   //             set_pixel(app_state->cells[i], x, 27-y, 0, 0, 0);
+   //             set_pixel(app_state->cells[i], y, x, 0, 0, 0);
+   //             set_pixel(app_state->cells[i], 27-y, x, 0, 0, 0);
+   //         }
+   //     }
+   //     SDL_UnlockSurface(app_state->cells[i]);
+   // }
    
     for (size_t i = 0; i < 81; i++) {
         size_t x = i / 9;

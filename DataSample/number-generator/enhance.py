@@ -9,21 +9,29 @@ import sys
 
 def enhance(R):
     files = os.listdir("./output/")
-    l = R * len(files)
+    l = (R+1) * len(files)
     i = 1
-    for r in range(R):
-        for f in files:
-            print(i,"/",l)
-            randrot = random.randrange(-10, 10)
-            randoff = random.randrange(-2, 2)
-            og = Image.open("./output/" + f)
-            mod = og.copy()
-            mod = mod.rotate(randrot, fillcolor=0)
-            mod = ImageChops.offset(mod, randoff)
-            filename = hashlib.sha256(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[:8]
-            fname = f[0]+"__"+filename+".bmp"
-            mod.save("./noise/" + fname, format="BMP")
-            i += 1
+    for f in files:
+        print(i,"/",l)
+        og = Image.open("./output/" + f)
+        mod = og.copy()
+        filename = hashlib.sha256(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[:8]
+        fname = f[0]+"__"+filename+".bmp"
+        mod.save("./noise/" + fname, format="BMP")
+        i += 1
+    # for r in range(R):
+    #     for f in files:
+    #         print(i,"/",l)
+    #         randrot = random.randrange(-10, 10)
+    #         randoff = random.randrange(-2, 2)
+    #         og = Image.open("./output/" + f)
+    #         mod = og.copy()
+    #         mod = mod.rotate(randrot, fillcolor=0)
+    #         mod = ImageChops.offset(mod, randoff)
+    #         filename = hashlib.sha256(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[:8]
+    #         fname = f[0]+"__"+filename+".bmp"
+    #         mod.save("./noise/" + fname, format="BMP")
+    #         i += 1
 
 def to_dir(path):
     files = os.listdir(path)
@@ -57,8 +65,11 @@ def equalize():
    #         to_delete[idx] -= 1
 
 if __name__ == "__main__":
-    # equalize()
-    # to_dir(sys.argv[1])
-    # shutil.rmtree("./noise")
-    # os.mkdir("./noise")
-    enhance(int(sys.argv[1]))
+    if sys.argv[1] == 'eq':
+        equalize()
+    elif sys.argv[1] == 't':
+        to_dir(sys.argv[2])
+    elif sys.argv[1] == 'e':
+        # shutil.rmtree("./noise")
+        # os.mkdir("./noise")
+        enhance(int(sys.argv[2]))

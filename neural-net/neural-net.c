@@ -91,8 +91,8 @@ NeuralNetwork new_network(double learning_rate) {
     nn.updates.iterations = 0;
     nn.layers = calloc(nn.layer_count, sizeof(Layer));
     nn.layers[0] = new_layer(ReLU, 784, 0, nn.batch_size);
-    nn.layers[1] = new_layer(ReLU, 18, 784, nn.batch_size);
-    nn.layers[2] = new_layer(SoftMax, 10, 18, nn.batch_size);
+    nn.layers[1] = new_layer(ReLU, 30, 784, nn.batch_size);
+    nn.layers[2] = new_layer(SoftMax, 10, 30, nn.batch_size);
     nn.updates.dZ2 = new_matrix(nn.layers[2].Z.n, nn.layers[2].Z.p);
     nn.updates.dW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
     nn.updates.mW2 = new_matrix(nn.layers[2].W.n, nn.layers[2].W.p);
@@ -356,7 +356,7 @@ void train_network(NeuralNetwork *neural_net, char* dataset_path, size_t iterati
     LabeledImage* dataset = load_dataset(dataset_path, &len_dataset);
     //LabeledImage* dataset = load_all_cutter_set(dataset_path, &len_dataset);
 
-    szt len_training = len_dataset * 0.9;
+    szt len_training = len_dataset * 1;
     szt len_testing = len_dataset - len_training;
 
     printf("Training: %zu   Validation: %zu\n", len_training, len_testing);

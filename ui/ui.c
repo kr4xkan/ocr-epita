@@ -152,31 +152,31 @@ void load_number(int number_grid) {
         SDL_FreeSurface(numb_solver);
     switch (number_grid) {
     case 1:
-        numb_solver = loadImage("../solver/chiffres/1.jpg");
+        numb_solver = loadImage("solver/chiffres/1.jpg");
         break;
     case 2:
-        numb_solver = loadImage("../solver/chiffres/2.jpg");
+        numb_solver = loadImage("solver/chiffres/2.jpg");
         break;
     case 3:
-        numb_solver = loadImage("../solver/chiffres/3.jpg");
+        numb_solver = loadImage("solver/chiffres/3.jpg");
         break;
     case 4:
-        numb_solver = loadImage("../solver/chiffres/4.jpg");
+        numb_solver = loadImage("solver/chiffres/4.jpg");
         break;
     case 5:
-        numb_solver = loadImage("../solver/chiffres/5.jpg");
+        numb_solver = loadImage("solver/chiffres/5.jpg");
         break;
     case 6:
-        numb_solver = loadImage("../solver/chiffres/6.jpg");
+        numb_solver = loadImage("solver/chiffres/6.jpg");
         break;
     case 7:
-        numb_solver = loadImage("../solver/chiffres/7.jpg");
+        numb_solver = loadImage("solver/chiffres/7.jpg");
         break;
     case 8:
-        numb_solver = loadImage("../solver/chiffres/8.jpg");
+        numb_solver = loadImage("solver/chiffres/8.jpg");
         break;
     case 9:
-        numb_solver = loadImage("../solver/chiffres/9.jpg");
+        numb_solver = loadImage("solver/chiffres/9.jpg");
         break;
     }
 }
@@ -184,7 +184,13 @@ void load_number(int number_grid) {
 // recupere l'array de 10 10 de la fonction solver
 void grid_to_image(int grid[9][9]) {
 
-    void_grid = LoadImage("../void_grid.jpg");
+    if (void_grid)
+        SDL_FreeSurface(void_grid);
+    void_grid = LoadImage("void_grid.jpg");
+    rect.x = 15;
+    rect.y = 15;
+    rect.h = 40;
+    rect.w = 40;
 
     for (int i = 0; i < 9; i++) {
         for (int j = 0; j < 9; j++) {
@@ -247,6 +253,8 @@ void on_next_button_bin(GtkWidget *widget, gpointer user_data) {
     gtk_widget_show(GTK_WIDGET(app_state->next_lines));
     gtk_widget_hide(GTK_WIDGET(binarisation));
 
+    if (app_state->current_surface)
+        SDL_FreeSurface(app_state->current_surface);
     app_state->current_surface = surf_bin;
     app_state->draw.ratio = set_gtk_image_from_surface(
         app_state->img_lines, app_state->current_surface, 1);
@@ -277,7 +285,14 @@ void on_next_button_cutter(GtkWidget *widget, gpointer user_data) {
     corners[3].x = app_state->draw.p4.x / app_state->draw.ratio;
     corners[3].y = app_state->draw.p4.y / app_state->draw.ratio;
 
+    if (app_state->cells) {
+        for (size_t i = 0; i < 81; i++) {
+            SDL_FreeSurface(app_state->cells[i]);
+        }
+        free(app_state->cells);
+    }
     app_state->cells = ManualCutter(surf_bin, corners);
+    free(corners);
 
     for (size_t i = 0; i < 81; i++) {
         size_t x = i / 9;
@@ -285,18 +300,19 @@ void on_next_button_cutter(GtkWidget *widget, gpointer user_data) {
         app_state->sudoku[x][y] = recognize_digit(app_state->cells[i]);
     }
 
-    for (size_t y = 0; y < 9; y++) {
-        for (size_t x = 0; x < 9; x++) {
-            printf("%d ", app_state->sudoku[x][y]);
-            char name[] = {y + '1', '-', x + '1', '.', 'p', 'n', 'g', '\0'};
-            char *newStr = malloc((strlen(name) + 15) * sizeof(char));
-            strcpy(newStr, "squares/");
-            strcat(newStr, name);
-            IMG_SavePNG(app_state->cells[y * 9 + x], newStr);
-            free(newStr);
-        }
-        printf("\n");
-    }
+    // Saves squares for training
+    // for (size_t y = 0; y < 9; y++) {
+    //     for (size_t x = 0; x < 9; x++) {
+    //         printf("%d ", app_state->sudoku[x][y]);
+    //         char name[] = {y + '1', '-', x + '1', '.', 'p', 'n', 'g', '\0'};
+    //         char *newStr = malloc((strlen(name) + 15) * sizeof(char));
+    //         strcpy(newStr, "squares/");
+    //         strcat(newStr, name);
+    //         IMG_SavePNG(app_state->cells[y * 9 + x], newStr);
+    //         free(newStr);
+    //     }
+    //     printf("\n");
+    // }
 
     solver(app_state->sudoku, 0, 0);
 
@@ -359,11 +375,11 @@ void on_lvl4(GtkButton *btn, gpointer user_data) {
     set_gtk_image_from_surface(bin_image, surf_bin, 0);
 }
 
-int main() {
+int main_ui() {
 
     gtk_init(NULL, NULL);
 
-    builder = gtk_builder_new_from_file("window_ui.glade");
+    builder = gtk_builder_new_from_file("ui/window_ui.glade");
 
     // get components
     // opening window components

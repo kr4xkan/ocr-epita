@@ -262,7 +262,7 @@ void cmd_train(int argc, char **argv) {
 
 char recognize_digit(SDL_Surface *surf) {
     NeuralNetwork nn;
-    Buffer *buf = load_buffer("../neural-net/save.nrl");
+    Buffer *buf = load_buffer("neural-net/save.nrl");
     nn = deserialize_network(buf);
     free_buffer(buf);
 

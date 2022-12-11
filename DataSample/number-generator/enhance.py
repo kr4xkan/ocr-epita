@@ -19,19 +19,19 @@ def enhance(R):
         fname = f[0]+"__"+filename+".bmp"
         mod.save("./noise/" + fname, format="BMP")
         i += 1
-    # for r in range(R):
-    #     for f in files:
-    #         print(i,"/",l)
-    #         randrot = random.randrange(-10, 10)
-    #         randoff = random.randrange(-2, 2)
-    #         og = Image.open("./output/" + f)
-    #         mod = og.copy()
-    #         mod = mod.rotate(randrot, fillcolor=0)
-    #         mod = ImageChops.offset(mod, randoff)
-    #         filename = hashlib.sha256(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[:8]
-    #         fname = f[0]+"__"+filename+".bmp"
-    #         mod.save("./noise/" + fname, format="BMP")
-    #         i += 1
+    for r in range(R):
+        for f in files:
+            print(i,"/",l)
+            randrot = random.randrange(-10, 10)
+            randoff = random.randrange(-2, 2)
+            og = Image.open("./output/" + f)
+            mod = og.copy()
+            mod = mod.rotate(randrot, fillcolor=0)
+            mod = ImageChops.offset(mod, randoff)
+            filename = hashlib.sha256(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[:8]
+            fname = f[0]+"__"+filename+".bmp"
+            mod.save("./noise/" + fname, format="BMP")
+            i += 1
 
 def to_dir(path):
     files = os.listdir(path)

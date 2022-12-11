@@ -342,7 +342,7 @@ void on_next_button_cutter(GtkWidget *widget, gpointer user_data){
         printf("\n");
     }
   
-    //int res = solver(app_state->sudoku, 0, 0);
+    solver(app_state->sudoku, 0, 0);
 
 //add the solver function to the grid from the nn
 //
@@ -372,6 +372,41 @@ void on_return_home(GtkWidget *widget) {
     SDL_FreeSurface(void_grid);
 	gtk_widget_hide(GTK_WIDGET(solved));
 	gtk_widget_show(GTK_WIDGET(opening_window));
+}
+
+void on_lvl1(GtkButton* btn, gpointer user_data) {
+    if (surf_rot)
+        SDL_FreeSurface(surf_rot);
+    surf_rot = loadImage("rotated.png");
+    binarization(surf_rot, 5);
+    surf_bin = loadImage("binary.png");
+    set_gtk_image_from_surface(bin_image, surf_bin, 0);
+}
+void on_lvl2(GtkButton* btn, gpointer user_data) {
+    if (surf_rot)
+        SDL_FreeSurface(surf_rot);
+    surf_rot = loadImage("rotated.png");
+    binarization(surf_rot, 12);
+    surf_bin = loadImage("binary.png");
+    set_gtk_image_from_surface(bin_image, surf_bin, 0);
+}
+void on_lvl3(GtkButton* btn, gpointer user_data) {
+    if (surf_rot)
+        SDL_FreeSurface(surf_rot);
+    surf_rot = loadImage("rotated.png");
+    binarization(surf_rot, 20);
+    surf_bin = loadImage("binary.png");
+    set_gtk_image_from_surface(bin_image, surf_bin, 0);
+}
+void on_lvl4(GtkButton* btn, gpointer user_data) {
+    if (surf_bin)
+        SDL_FreeSurface(surf_bin);
+    if (surf_rot)
+        SDL_FreeSurface(surf_rot);
+    surf_rot = loadImage("rotated.png");
+    binarization(surf_rot, 30);
+    surf_bin = loadImage("binary.png");
+    set_gtk_image_from_surface(bin_image, surf_bin, 0);
 }
 
 int main(){
@@ -405,6 +440,10 @@ int main(){
     next_button_bin = GTK_BUTTON(gtk_builder_get_object(builder,"next_button_bin"));
 
     next_button_cutter = GTK_BUTTON(gtk_builder_get_object(builder,"next_button_cutter"));
+    GtkButton* lvl1 = GTK_BUTTON(gtk_builder_get_object(builder,"lvl1"));
+    GtkButton* lvl2 = GTK_BUTTON(gtk_builder_get_object(builder,"lvl2"));
+    GtkButton* lvl3 = GTK_BUTTON(gtk_builder_get_object(builder,"lvl3"));
+    GtkButton* lvl4 = GTK_BUTTON(gtk_builder_get_object(builder,"lvl4"));
 
 
 
@@ -464,6 +503,10 @@ int main(){
     //
     g_signal_connect(binarize_check, "toggled", G_CALLBACK(on_binarize_check),NULL);
     g_signal_connect(next_button_bin, "clicked", G_CALLBACK(on_next_button_bin),&app_state);
+    g_signal_connect(lvl1, "clicked", G_CALLBACK(on_lvl1),&app_state);
+    g_signal_connect(lvl2, "clicked", G_CALLBACK(on_lvl2),&app_state);
+    g_signal_connect(lvl3, "clicked", G_CALLBACK(on_lvl3),&app_state);
+    g_signal_connect(lvl4, "clicked", G_CALLBACK(on_lvl4),&app_state);
 
     //
     //ROMAIN

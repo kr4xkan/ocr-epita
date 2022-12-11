@@ -84,6 +84,62 @@ between binarized and normal image</property>
             <property name="y">98</property>
           </packing>
         </child>
+        <child>
+          <object class="GtkButton" id="lvl1">
+            <property name="label" translatable="yes">Level 1</property>
+            <property name="width-request">104</property>
+            <property name="height-request">34</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">640</property>
+            <property name="y">166</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="lvl2">
+            <property name="label" translatable="yes">Level 2</property>
+            <property name="width-request">104</property>
+            <property name="height-request">20</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">640</property>
+            <property name="y">207</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="lvl3">
+            <property name="label" translatable="yes">Level 3</property>
+            <property name="width-request">104</property>
+            <property name="height-request">34</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">640</property>
+            <property name="y">247</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="lvl4">
+            <property name="label" translatable="yes">Level 4</property>
+            <property name="width-request">104</property>
+            <property name="height-request">34</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+          </object>
+          <packing>
+            <property name="x">640</property>
+            <property name="y">287</property>
+          </packing>
+        </child>
       </object>
     </child>
   </object>

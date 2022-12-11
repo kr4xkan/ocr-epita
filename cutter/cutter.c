@@ -20,23 +20,17 @@ size_t accumulatorSize;
 size_t maxDist;
 unsigned int minPeak;
 
-
 double cosArray[maxTheta];
 double sinArray[maxTheta];
 
-
-
-SDL_Surface **ManualCutter(SDL_Surface *ogSurf, Intersection *corners){
+SDL_Surface **ManualCutter(SDL_Surface *ogSurf, Intersection *corners) {
     return ManualCrop(ogSurf, corners);
 }
 
-
-
 SDL_Surface **AutoCutter(SDL_Surface *ogSurf, SDL_Surface *binSurf) {
     clock_t t = clock();
-    
-    SDL_Surface **res;
 
+    SDL_Surface **res;
 
     unsigned int *accumulator = CreateAccumulator(binSurf);
     Line *lines = DetectLines(accumulator);
@@ -47,40 +41,43 @@ SDL_Surface **AutoCutter(SDL_Surface *ogSurf, SDL_Surface *binSurf) {
     if (binSurfRotated == NULL) {
         size_t vertLen = 0, horiLen = 0;
         lines = FilterLines(accumulator, lines, &vertLen, &horiLen);
-        printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
+        printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen,
+               horiLen);
 
         unsigned int *space = CreateSpace(binSurf, lines);
-        Intersection *intersections = FindIntersections(binSurf, space, vertLen, horiLen);
-        
+        Intersection *intersections =
+            FindIntersections(binSurf, space, vertLen, horiLen);
+
         res = CropSquares(ogSurf, intersections, vertLen, horiLen);
 
-        DrawLines(ogSurf, ogSurf->pixels, lines, vertLen*horiLen);
-        //DrawIntersections(ogSurf, intersections, 10*10);
+        DrawLines(ogSurf, ogSurf->pixels, lines, vertLen * horiLen);
+        // DrawIntersections(ogSurf, intersections, 10*10);
         IMG_SavePNG(ogSurf, "result.png");
 
-        
         free(space);
         free(intersections);
-    }
-    else{
+    } else {
         SDL_Surface *ogSurfRotated = RotateSurface(ogSurf, angle);
 
         unsigned int *accumulatorRotated = CreateAccumulator(binSurfRotated);
         Line *linesRotated = DetectLines(accumulatorRotated);
 
         size_t vertLen = 0, horiLen = 0;
-        linesRotated = FilterLines(accumulatorRotated, linesRotated, &vertLen, &horiLen);
-        printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen, horiLen);
-    
+        linesRotated =
+            FilterLines(accumulatorRotated, linesRotated, &vertLen, &horiLen);
+        printf("lines detected : vertical:%lu horizontal:%lu\n", vertLen,
+               horiLen);
+
         unsigned int *spaceRotated = CreateSpace(binSurfRotated, linesRotated);
-        Intersection *intersections = FindIntersections(binSurfRotated, spaceRotated, vertLen, horiLen);
+        Intersection *intersections =
+            FindIntersections(binSurfRotated, spaceRotated, vertLen, horiLen);
 
         res = CropSquares(ogSurfRotated, intersections, vertLen, horiLen);
 
-        DrawLines(ogSurfRotated, ogSurfRotated->pixels, linesRotated, vertLen*horiLen);
-        //DrawIntersections(ogSurfRotated, intersections, vertLen*horiLen);
+        DrawLines(ogSurfRotated, ogSurfRotated->pixels, linesRotated,
+                  vertLen * horiLen);
+        // DrawIntersections(ogSurfRotated, intersections, vertLen*horiLen);
         IMG_SavePNG(ogSurfRotated, "result.png");
-
 
         free(accumulatorRotated);
         free(linesRotated);
@@ -88,17 +85,15 @@ SDL_Surface **AutoCutter(SDL_Surface *ogSurf, SDL_Surface *binSurf) {
         free(intersections);
         SDL_FreeSurface(binSurfRotated);
         SDL_FreeSurface(ogSurfRotated);
-    } 
+    }
     free(accumulator);
     free(lines);
-
 
     t = clock() - t;
     double time_taken = ((double)t) / CLOCKS_PER_SEC; // in seconds
     printf("\n%f seconds to execute \n", time_taken);
     return res;
 }
-
 
 unsigned int *CreateAccumulator(SDL_Surface *surface) {
     /**
@@ -131,7 +126,6 @@ unsigned int *CreateAccumulator(SDL_Surface *surface) {
     return accumulator;
 }
 
-
 void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator) {
     /**
      * Check for every point in the image and draw it's sinus curve in the
@@ -145,7 +139,7 @@ void FillAcumulator(SDL_Surface *surface, unsigned int *accumulator) {
 
             GetPixelColor(surface, x, y, &r, &g, &b);
             if ((r + g + b) / 3 >= minAverage) {
-                
+
                 // compute all the values of rho and theta for the given point
                 for (size_t theta = 0; theta < maxTheta; theta++) {
                     int rho = x * cosArray[theta] + y * sinArray[theta];
@@ -171,17 +165,17 @@ unsigned int FindMinPeak(unsigned int *accumulator) {
     return maxPeak * ratio;
 }
 
-Line* DetectLines(unsigned int *accumulator){
+Line *DetectLines(unsigned int *accumulator) {
     /**
      * Remove lines that are too similar to another one
      */
 
-    Line *lines = malloc(500*sizeof(Line));
+    Line *lines = malloc(500 * sizeof(Line));
     size_t len = 0;
 
     size_t maxGap = sqrt(maxDist);
 
-    //Removing duplicates 
+    // Removing duplicates
     int rho = 0;
     int theta = 0;
     for (size_t i = 0; i < accumulatorSize; i++) {
@@ -189,13 +183,12 @@ Line* DetectLines(unsigned int *accumulator){
         unsigned int val = accumulator[i];
         if (CheckPeak(accumulator, i, val)) {
             Line line = {theta, rho, val, i};
-            
+
             if (!AlreadyExist(lines, line, len, maxGap, accumulator)) {
                 lines[len] = line;
                 len++;
             }
-        } 
-        else {
+        } else {
             accumulator[i] = 0;
         }
 
@@ -204,14 +197,13 @@ Line* DetectLines(unsigned int *accumulator){
             theta = 0;
             rho++;
         }
-
     }
-    lines[len].accuPos = accumulatorSize+1;
+    lines[len].accuPos = accumulatorSize + 1;
     return lines;
 }
 
-int AlreadyExist(Line *lines, Line line, size_t len, int maxGap, 
-        unsigned int *accumulator) {
+int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
+                 unsigned int *accumulator) {
     /**
      * Check if a line is similar to an already existing one
      * Return 1 if the line already exist, 2 if a bigger one is found, 0 else
@@ -220,16 +212,15 @@ int AlreadyExist(Line *lines, Line line, size_t len, int maxGap,
     for (size_t i = 0; i < len; i++) {
         Line iLine = lines[i];
 
-        int dTheta = abs((int)(iLine.theta%180) - (int)(line.theta%180));
+        int dTheta = abs((int)(iLine.theta % 180) - (int)(line.theta % 180));
         int dRho = abs((int)(iLine.rho) - (int)(line.rho));
 
         if ((dTheta <= 10 || dTheta >= 170) && dRho <= maxGap) {
             // if two lines are similar keep the biggest one
-            if (line.value > iLine.value){
+            if (line.value > iLine.value) {
                 accumulator[iLine.accuPos] = 0;
                 lines[i] = line;
-            }
-            else{
+            } else {
                 accumulator[line.accuPos] = 0;
             }
             return 1;
@@ -256,55 +247,54 @@ int CheckPeak(unsigned int *accumulator, size_t i, unsigned int val) {
     return 1;
 }
 
-
-Line* FilterLines(unsigned int *accumulator, Line* lines, size_t *vertLen, size_t *horiLen){
+Line *FilterLines(unsigned int *accumulator, Line *lines, size_t *vertLen,
+                  size_t *horiLen) {
 
     size_t len = 0;
-    while (lines[len].accuPos != accumulatorSize+1)
+    while (lines[len].accuPos != accumulatorSize + 1)
         len++;
 
-    size_t histoSize = accumulatorSize/maxTheta;
+    size_t histoSize = accumulatorSize / maxTheta;
     unsigned int *histoVert = calloc(histoSize, sizeof(unsigned int));
     unsigned int *histoHori = calloc(histoSize, sizeof(unsigned int));
 
     Line *vertLines = calloc(len, sizeof(Line));
     Line *horiLines = calloc(len, sizeof(Line));
 
-    for (size_t i = 1; i < len; i++){
+    for (size_t i = 1; i < len; i++) {
         size_t j = i;
-        while (j > 0 && lines[j-1].rho >  lines[j].rho){
-            Line tmp = lines[j-1];
-            lines[j-1] = lines[j];
+        while (j > 0 && lines[j - 1].rho > lines[j].rho) {
+            Line tmp = lines[j - 1];
+            lines[j - 1] = lines[j];
             lines[j] = tmp;
             j--;
         }
     }
 
-    //Filter in two separate array vertical and horizontal lines
-    //Remove the others
+    // Filter in two separate array vertical and horizontal lines
+    // Remove the others
     unsigned int rho1 = -1, rho2 = -1;
-    for (size_t i = 0; i < len; i++){
+    for (size_t i = 0; i < len; i++) {
         Line line = lines[i];
 
-        if (line.theta % 90 >= 2 && line.theta % 90 <= 88) 
-            accumulator[line.accuPos] = 0;            
-        else{
-            if(line.theta < 2 || line.theta > 178){
+        if (line.theta % 90 >= 2 && line.theta % 90 <= 88)
+            accumulator[line.accuPos] = 0;
+        else {
+            if (line.theta < 2 || line.theta > 178) {
                 vertLines[*vertLen] = line;
                 (*vertLen)++;
                 if (*vertLen == 1)
                     rho1 = line.rho;
-                else{
+                else {
                     histoVert[line.rho - rho1] += 1;
                     rho1 = line.rho;
                 }
-            }
-            else{
+            } else {
                 horiLines[*horiLen] = line;
                 (*horiLen)++;
                 if (*horiLen == 1)
                     rho2 = line.rho;
-                else{
+                else {
                     histoHori[line.rho - rho2] += 1;
                     rho2 = line.rho;
                 }
@@ -312,30 +302,28 @@ Line* FilterLines(unsigned int *accumulator, Line* lines, size_t *vertLen, size_
         }
     }
 
-
     size_t range = 5;
     size_t vertCapacity = *vertLen, horiCapacity = *horiLen;
-    while (range > 0 && (*horiLen > 10 || *vertLen > 10)){
+    while (range > 0 && (*horiLen > 10 || *vertLen > 10)) {
         size_t gap = FindGap(histoVert, histoSize, range);
         Remove(accumulator, vertLines, vertCapacity, vertLen, gap);
         gap = FindGap(histoHori, histoSize, range);
         Remove(accumulator, horiLines, horiCapacity, horiLen, gap);
         range--;
     }
-    
-    size_t mallocLen = *(vertLen)*(*horiLen)+1;
+
+    size_t mallocLen = *(vertLen) * (*horiLen) + 1;
     if (mallocLen == 2)
         mallocLen++;
 
-    Line *newLines = malloc(mallocLen*sizeof(Line));
+    Line *newLines = malloc(mallocLen * sizeof(Line));
     size_t i = 0, j = 0;
-    while (i < vertCapacity){
-        if (vertLines[i].value != 0){
-            if (j >= 10){
+    while (i < vertCapacity) {
+        if (vertLines[i].value != 0) {
+            if (j >= 10) {
                 (*vertLen)--;
                 accumulator[vertLines[i].accuPos] = 0;
-            }
-            else{
+            } else {
                 newLines[j] = vertLines[i];
                 j++;
             }
@@ -343,13 +331,12 @@ Line* FilterLines(unsigned int *accumulator, Line* lines, size_t *vertLen, size_
         i++;
     }
     i = 0;
-    while (i < horiCapacity){
-        if (horiLines[i].value != 0){
-            if (j >= *vertLen + 10){
+    while (i < horiCapacity) {
+        if (horiLines[i].value != 0) {
+            if (j >= *vertLen + 10) {
                 (*horiLen)--;
                 accumulator[horiLines[i].accuPos] = 0;
-            }
-            else{
+            } else {
                 newLines[j] = horiLines[i];
                 j++;
             }
@@ -366,19 +353,17 @@ Line* FilterLines(unsigned int *accumulator, Line* lines, size_t *vertLen, size_
     return newLines;
 }
 
-
-
-size_t FindGap(unsigned int *histo, size_t histoSize, size_t range){
+size_t FindGap(unsigned int *histo, size_t histoSize, size_t range) {
     size_t current = 0;
-    for (size_t i = 0; i <= range*2; i++)
+    for (size_t i = 0; i <= range * 2; i++)
         current += histo[i];
 
     size_t gap = range;
     size_t max = current;
-    for (size_t i = range+2; i < histoSize-range; i++){
-        current -= histo[i-range-1];
-        current += histo[i+range];
-        if (current > max){
+    for (size_t i = range + 2; i < histoSize - range; i++) {
+        current -= histo[i - range - 1];
+        current += histo[i + range];
+        if (current > max) {
             gap = i;
             max = current;
         }
@@ -386,32 +371,30 @@ size_t FindGap(unsigned int *histo, size_t histoSize, size_t range){
     return gap;
 }
 
-
-void Remove(unsigned int *accumulator, Line *lines, size_t capacity, size_t *size, size_t gap){
-    size_t dGap = gap/2;
-    while (dGap > 0 && *size > 10){
-        //Vertical Lines
+void Remove(unsigned int *accumulator, Line *lines, size_t capacity,
+            size_t *size, size_t gap) {
+    size_t dGap = gap / 2;
+    while (dGap > 0 && *size > 10) {
+        // Vertical Lines
         char inSudoku = 0;
         Line *prev = &lines[0];
-        for (size_t i = 1; i < capacity; i++){
+        for (size_t i = 1; i < capacity; i++) {
             Line *curr = &lines[i];
-            if (curr->value == 0 || prev->value == 0){
+            if (curr->value == 0 || prev->value == 0) {
                 continue;
             }
 
             size_t dRho = (curr->rho - prev->rho) % gap;
-            if (dRho > dGap && dRho < gap-dGap){
-                if (!inSudoku){
+            if (dRho > dGap && dRho < gap - dGap) {
+                if (!inSudoku) {
                     prev->value = 0;
                     accumulator[prev->accuPos] = 0;
-                }
-                else {
+                } else {
                     curr->value = 0;
                     accumulator[curr->accuPos] = 0;
                 }
                 (*size)--;
-            }
-            else {
+            } else {
                 inSudoku = 1;
             }
             prev = curr;
@@ -420,11 +403,8 @@ void Remove(unsigned int *accumulator, Line *lines, size_t capacity, size_t *siz
     }
 }
 
-
-
-
-
-SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator, int *angleDegree) {
+SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator,
+                           int *angleDegree) {
     /**
      * Compute an average angle to rotate the image
      * Return NULL if the surface does not need rotation
@@ -458,11 +438,11 @@ SDL_Surface *CheckRotation(SDL_Surface *surface, unsigned int *accumulator, int 
         if (angle >= 45) {
             printf("Rotate %i° Clockwise\n", 90 - angle);
             rotated = RotateSurface(surface, -90 + angle);
-    printf("2 %d\n", angle);
+            printf("2 %d\n", angle);
         } else {
             printf("Rotate %i° CounterClockwise\n", angle);
             rotated = RotateSurface(surface, angle);
-    printf("3 %d\n", angle);
+            printf("3 %d\n", angle);
         }
     }
 
@@ -522,11 +502,7 @@ SDL_Surface *RotateSurface(SDL_Surface *surface, float angle) {
     return dest;
 }
 
-
-
-
-unsigned int *CreateSpace(SDL_Surface *surface,
-                                  Line* lines) {
+unsigned int *CreateSpace(SDL_Surface *surface, Line *lines) {
     /**
      * Detect the intersections of every lines in the accumulator by drawing
      * them in the normal space Return the normal space
@@ -541,7 +517,7 @@ unsigned int *CreateSpace(SDL_Surface *surface,
         errx(1, "Could not create normalSpace");
 
     Line *current = lines;
-    while (current->value != 0){
+    while (current->value != 0) {
         double thetaRad = current->theta * pi / 180;
         double a = cos(thetaRad);
         double b = sin(thetaRad);
@@ -553,7 +529,7 @@ unsigned int *CreateSpace(SDL_Surface *surface,
         int y2 = y0 - 3000 * a;
 
         ComputeLine(normalSpace, w, h, x1, y1, x2, y2);
-        current+=1;
+        current += 1;
     }
     return normalSpace;
 }
@@ -620,8 +596,6 @@ void ComputeLine(unsigned int *normalSpace, long int w, long int h, long int x1,
     }
 }
 
-
-
 //----------------------------UTILS--------------------------
 void PrintMat(unsigned int *accumulator) {
     size_t count = 0;
@@ -646,12 +620,11 @@ void PrintMat(unsigned int *accumulator) {
     printf("\n");
 }
 
-void DrawLines(SDL_Surface *surface, int *pixels, Line *lines, size_t len){
+void DrawLines(SDL_Surface *surface, int *pixels, Line *lines, size_t len) {
     Uint32 color = SDL_MapRGB(surface->format, 255, 0, 0);
 
     for (size_t i = 0; i < len; i++) {
         Line line = lines[i];
-
 
         double thetaRad = line.theta * pi / 180;
         double a = cos(thetaRad);
@@ -725,7 +698,7 @@ void DrawLine(int *pixels, long int w, long int h, long int x1, long int y1,
     }
 }
 
-void DrawIntersections(SDL_Surface *surface, Intersection *coords, size_t len){
+void DrawIntersections(SDL_Surface *surface, Intersection *coords, size_t len) {
     int w = surface->w;
     int h = surface->h;
 
@@ -733,10 +706,10 @@ void DrawIntersections(SDL_Surface *surface, Intersection *coords, size_t len){
     for (size_t i = 0; i < len; i++) {
         int x = (int)coords[i].x;
         int y = (int)coords[i].y;
-        for (int dx = -5; dx <= 5; dx++){
-            for (int dy = -5; dy <= 5; dy++){
-                if (x+dx >= 0 && x+dx < w && y+dy >=0 && y+dy < h){
-                    SetPixelData(surface, x+dx, y+dy, color);
+        for (int dx = -5; dx <= 5; dx++) {
+            for (int dy = -5; dy <= 5; dy++) {
+                if (x + dx >= 0 && x + dx < w && y + dy >= 0 && y + dy < h) {
+                    SetPixelData(surface, x + dx, y + dy, color);
                 }
             }
         }

@@ -2,7 +2,6 @@
 #include <SDL2/SDL_image.h>
 #include <err.h>
 
-
 Uint32 pixel_to_grayscale(Uint32 pixel_color, SDL_PixelFormat *format) {
     Uint8 r, g, b;
     SDL_GetRGB(pixel_color, format, &r, &g, &b);
@@ -26,7 +25,7 @@ int otsu(SDL_Surface *img, int hmin, int wmin, int hmax, int wmax, int w) {
     Uint32 *pixels = img->pixels;
     double histo[256];
     for (size_t h = 0; h < 256; h++)
-	    histo[h] = 0;
+        histo[h] = 0;
     int nbpix = (wmax - wmin) * (hmax - hmin);
     int threshold = 0;
     for (int x = wmin; x < wmax; x++) {
@@ -68,8 +67,8 @@ int otsu(SDL_Surface *img, int hmin, int wmin, int hmax, int wmax, int w) {
     return threshold - 15;
 }
 
-void binarize_square(SDL_Surface *surface, int threshold,
-                     int Hmin, int Wmin, int Hmax, int Wmax, int w) {
+void binarize_square(SDL_Surface *surface, int threshold, int Hmin, int Wmin,
+                     int Hmax, int Wmax, int w) {
     Uint32 *pixels = surface->pixels;
     SDL_PixelFormat *format = surface->format;
     for (int x = Wmin; x < Wmax; x++) {
@@ -88,31 +87,27 @@ void binarize_square(SDL_Surface *surface, int threshold,
 void dumb_bin(SDL_Surface *surface, int cutter) {
     int w = surface->w;
     int h = surface->h;
-    int* h_list = calloc(cutter+1, sizeof(int));
-    int* w_list = calloc(cutter+1, sizeof(int));
+    int *h_list = calloc(cutter + 1, sizeof(int));
+    int *w_list = calloc(cutter + 1, sizeof(int));
     int cuth = h / cutter;
     int cutw = w / cutter;
-    for (int i = 1; i < (cutter+1); i++)
-    {
-	 h_list[i] += cuth * i;
-         w_list[i] += cutw * i;
+    for (int i = 1; i < (cutter + 1); i++) {
+        h_list[i] += cuth * i;
+        w_list[i] += cutw * i;
     }
 
-    for (int a = 1; a < (cutter+1) ; a++)
-    {
-        for (int b = 1; b < (cutter+1); b++)
-        {
-            int threshold = otsu(surface, h_list[b-1], w_list[a-1], h_list[b], w_list[a], w);
-            binarize_square(surface, threshold, h_list[b - 1],
-                                w_list[a - 1], h_list[b], w_list[a], w);
+    for (int a = 1; a < (cutter + 1); a++) {
+        for (int b = 1; b < (cutter + 1); b++) {
+            int threshold = otsu(surface, h_list[b - 1], w_list[a - 1],
+                                 h_list[b], w_list[a], w);
+            binarize_square(surface, threshold, h_list[b - 1], w_list[a - 1],
+                            h_list[b], w_list[a], w);
         }
     }
 }
 
-
-
 void binarization(SDL_Surface *surface, int otsu_size) {
-    //SDL_Surface *surface = load_image(path);
+    // SDL_Surface *surface = load_image(path);
 
     surface_to_grayscale(surface);
 
@@ -121,7 +116,6 @@ void binarization(SDL_Surface *surface, int otsu_size) {
     dumb_bin(surface, otsu_size);
 
     IMG_SavePNG(surface, "binary.png");
-
 }
 
 /*

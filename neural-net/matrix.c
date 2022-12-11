@@ -1,8 +1,8 @@
 #include "matrix.h"
 #include <stdio.h>
 
-Buffer* new_buffer() {
-    Buffer* buf = malloc(sizeof(Buffer));
+Buffer *new_buffer() {
+    Buffer *buf = malloc(sizeof(Buffer));
     buf->capacity = 1;
     buf->size = 0;
     buf->head = 0;
@@ -10,28 +10,28 @@ Buffer* new_buffer() {
     return buf;
 }
 
-void free_buffer(Buffer* buf) {
+void free_buffer(Buffer *buf) {
     free(buf->data);
     free(buf);
 }
 
-void save_buffer(Buffer* buf, char* path) {
-    FILE* f;
+void save_buffer(Buffer *buf, char *path) {
+    FILE *f;
     f = fopen(path, "w");
     if (f == NULL)
         errx(1, "Could not save network at '%s'", path);
-    
+
     fwrite(buf->data, sizeof(char), buf->size, f);
     fclose(f);
 }
 
-Buffer* load_buffer(char* path) {
-    FILE* f;
+Buffer *load_buffer(char *path) {
+    FILE *f;
     f = fopen(path, "rb");
     if (f == NULL)
         errx(1, "Could not save network at '%s'", path);
 
-    Buffer* buf = new_buffer();
+    Buffer *buf = new_buffer();
 
     fseek(f, 0, SEEK_END);
     size_t fileSize = ftell(f);
@@ -44,7 +44,7 @@ Buffer* load_buffer(char* path) {
     return buf;
 }
 
-void reserve_space(Buffer* buf, size_t size) {
+void reserve_space(Buffer *buf, size_t size) {
     if (buf->size + size > buf->capacity) {
         while (buf->size + size > buf->capacity) {
             buf->capacity *= 2;
@@ -53,19 +53,19 @@ void reserve_space(Buffer* buf, size_t size) {
     }
 }
 
-void write_buffer(Buffer* buf, void* value, size_t size) {
+void write_buffer(Buffer *buf, void *value, size_t size) {
     memcpy(buf->data + buf->size, value, size);
     buf->size += size;
-    //printf("wrote %zu bytes\n", size);
+    // printf("wrote %zu bytes\n", size);
 }
 
-void read_buffer(Buffer* buf, void* dest, size_t size) {
+void read_buffer(Buffer *buf, void *dest, size_t size) {
     memcpy(dest, buf->data + buf->head, size);
-    //printf("read %zu bytes at %zu\n", size, buf->head);
+    // printf("read %zu bytes at %zu\n", size, buf->head);
     buf->head += size;
 }
 
-void serialize_matrix(Buffer* buf, Matrix* x) {
+void serialize_matrix(Buffer *buf, Matrix *x) {
     size_t len = x->n * x->p;
     size_t required_size = len * sizeof(double) + 2 * sizeof(size_t);
     reserve_space(buf, required_size);
@@ -75,7 +75,7 @@ void serialize_matrix(Buffer* buf, Matrix* x) {
     write_buffer(buf, x->v, len * sizeof(double));
 }
 
-Matrix deserialize_matrix(Buffer* buf) {
+Matrix deserialize_matrix(Buffer *buf) {
     Matrix m;
     size_t i;
     read_buffer(buf, &i, sizeof(size_t));
@@ -83,7 +83,7 @@ Matrix deserialize_matrix(Buffer* buf) {
     read_buffer(buf, &i, sizeof(size_t));
     m.p = i;
 
-    size_t len = m.n*m.p;
+    size_t len = m.n * m.p;
     m.v = calloc(len, sizeof(double));
     read_buffer(buf, m.v, len * sizeof(double));
     return m;
@@ -91,7 +91,7 @@ Matrix deserialize_matrix(Buffer* buf) {
 
 Matrix new_matrix(size_t n, size_t p) {
     Matrix m;
-    m.v = calloc(n*p, sizeof(double));
+    m.v = calloc(n * p, sizeof(double));
     m.n = n;
     m.p = p;
     return m;
@@ -107,9 +107,7 @@ Matrix new_random_matrix(size_t n, size_t p) {
     return m;
 }
 
-void free_matrix(Matrix* m) {
-    free(m->v);
-}
+void free_matrix(Matrix *m) { free(m->v); }
 
 Matrix transpose(Matrix a) {
     Matrix t = new_matrix(a.p, a.n);

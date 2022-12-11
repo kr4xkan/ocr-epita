@@ -58,7 +58,7 @@ int check_safe(int grid[9][9], int row, int col, int num) {
     int start_sqr_col = col - col % 3;
 
     for (int i = 0; i < 3; i++) {
-       for (int j = 0; j < 3; j++) {
+        for (int j = 0; j < 3; j++) {
             if (grid[i + start_sqr_row][j + start_sqr_col] == num) {
                 return 0;
             }
@@ -126,19 +126,19 @@ void argv_to_grid(char *filename, int grid[9][9]) {
     }
 }
 
-//int main(int argc, char **argv) {
-//    if (argc != 2) {
-//        printf("no valid grid entered\n");
-//        return 1;
-// 
-//    } else {
-//        int grid[9][9];
-//        argv_to_grid(argv[1], grid);
-//        if (solver(grid, 0, 0) == 1) {
-//            print_file(grid, argv[1]);
-//        } else {
-//            printf("no solution found\n");
-//        }
-//        return 0;
-//    }
-//}
+// int main(int argc, char **argv) {
+//     if (argc != 2) {
+//         printf("no valid grid entered\n");
+//         return 1;
+//
+//     } else {
+//         int grid[9][9];
+//         argv_to_grid(argv[1], grid);
+//         if (solver(grid, 0, 0) == 1) {
+//             print_file(grid, argv[1]);
+//         } else {
+//             printf("no solution found\n");
+//         }
+//         return 0;
+//     }
+// }

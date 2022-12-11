@@ -1,7 +1,7 @@
 #pragma once
 
 typedef struct {
-    GtkDrawingArea* area;
+    GtkDrawingArea *area;
     GdkRectangle p1;
     GdkRectangle p2;
     GdkRectangle p3;

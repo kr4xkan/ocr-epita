@@ -1,36 +1,8 @@
 # PC2's OCR
 
-## Neural network
-
-### Train a new network then saves to ./save.neural
+## Build and execute
 ```
-./neural-net --xor
-```
+make
 
-### Train a saved network
+./pc2ocr
 ```
-./neural-net --xor save.neural
-```
-
-### Makes a XOR guess with save.neural
-```
-./neural-net --guess 0 1
-```
-
-___
-
-## Preprocessing
-
-### Binarize an image and saves it to binary.png
-```
-./preprocessing image.jpg
-```
-
-___
-
-## Solver
-
-### Solves and saves the solved grid to <path>.result
-```
-./solver test.grid
-``` 
